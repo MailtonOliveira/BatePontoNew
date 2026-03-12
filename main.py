@@ -10,6 +10,8 @@ import tempfile
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pygetwindow as gw
 import pyautogui
 
@@ -32,10 +34,10 @@ def get_logs_path():
 logs_path = get_logs_path()
 
 horarios_permitidos = {
-    "08:00": {'seletor': 'button.btn-success .kind-number', 'nome': 'Entrada'},
-    "12:50": {'seletor': 'button.btn-info .kind-number', 'nome': 'Pausa'},
-    "13:50": {'seletor': 'button.btn-warning .kind-number', 'nome': 'Retorno'},
-    "17:00": {'seletor': 'button.btn-danger .kind-number', 'nome': 'Saída'}
+    "08:00": {'seletor': 'pontotel-botao-ponto[tipo="entrada"]', 'nome': 'Entrada'},
+    "12:50": {'seletor': 'pontotel-botao-ponto[tipo="pausa"]', 'nome': 'Pausa'},
+    "13:50": {'seletor': 'pontotel-botao-ponto[tipo="retorno"]', 'nome': 'Retorno'},
+    "18:00": {'seletor': 'pontotel-botao-ponto[tipo="saida"]', 'nome': 'Saída'}
 }
 
 def registrar_log(msg):
@@ -49,56 +51,84 @@ def horario_valido():
     return agora if agora in horarios_permitidos else None
 
 options = Options()
-user_data_dir = r"C:\BateBonto\AppData\Local\Google\Chrome\User Data"
+appdata_dir = os.environ.get('APPDATA')
+user_data_dir = os.path.join(appdata_dir, "BatePonto", "Chrome")
+os.makedirs(user_data_dir, exist_ok=True)
 options.add_argument(f"--user-data-dir={user_data_dir}")
-options.add_argument("--profile-directory=Defaut")
+options.add_argument("--profile-directory=Default")
 options.add_argument("--window-size=1280,720")
-# options.add_argument("--window-position=10000,10000")
+# options.add_argument("--window-position=10000,10000") # Removido para controle dinâmico
 
 options.add_argument("--start-maximized")
 driver = webdriver.Chrome(options=options)
 
 def preencher_senha():
     try:
-        campo = driver.find_element(By.ID, "senhanumerica")
-        campo.clear()
-        for digito in senha:
-            campo.send_keys(digito)
-            time.sleep(0.1)
-        registrar_log("Senha preenchida.")
-        return True
-    except:
-        registrar_log("Campo de senha não encontrado.")
+        wait = WebDriverWait(driver, 10)
+        host = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".pagina-sincronizacao-pin__input-pin")))
+        
+        # Tenta acessar o Shadow DOM usando JS para máxima compatibilidade
+        campo = driver.execute_script("return arguments[0].shadowRoot ? arguments[0].shadowRoot.querySelector('input') : arguments[0]", host)
+        
+        if campo:
+            campo.clear()
+            for digito in senha:
+                campo.send_keys(digito)
+                time.sleep(0.1)
+            registrar_log("Senha preenchida.")
+            return True
+        else:
+            registrar_log("Elemento input interno não encontrado no Shadow DOM.")
+            return False
+    except Exception as e:
+        registrar_log(f"Campo de senha não encontrado. Erro: {type(e).__name__}")
         return False
 
 def clicar_confirmar_pin():
     try:
-        botao = driver.find_element(By.ID, "confirmasenhanumerica")
-        botao.click()
-        registrar_log("Botão confirmar PIN clicado.")
-        return True
-    except:
-        registrar_log("Botão confirmar PIN não encontrado.")
-        return False
-
-def clicar_confirmar_janela():
-    try:
-        botao = driver.find_element(By.CSS_SELECTOR, ".btn-success.block")
-        botao.click()
-        registrar_log("Botão confirmar janela clicado.")
-        return True
-    except:
-        registrar_log("Botão confirmar janela não encontrado.")
+        wait = WebDriverWait(driver, 10)
+        host = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".pagina-sincronizacao-pin__botao-confirmar")))
+        
+        # O botão interno de `<pontotel-botao>`
+        botao = driver.execute_script("return arguments[0].shadowRoot ? arguments[0].shadowRoot.querySelector('button') : arguments[0]", host)
+        
+        if botao:
+            # Substituído `botao.click()` por execução via JS
+            driver.execute_script("arguments[0].click();", botao)
+            registrar_log("Botão confirmar PIN clicado (via JS).")
+            return True
+        else:
+            registrar_log("Elemento button interno não encontrado no Shadow DOM.")
+            return False
+            
+    except Exception as e:
+        registrar_log(f"Botão confirmar PIN não encontrado. Erro: {type(e).__name__}")
         return False
 
 def clicar_opcao(horario_atual):
     seletor = horarios_permitidos[horario_atual]["seletor"]
     nome = horarios_permitidos[horario_atual]["nome"]
+    hoje_str = datetime.datetime.now().strftime("%d.%m.%y")
+    
     try:
         for _ in range(timeout_padrao):
             botoes = driver.find_elements(By.CSS_SELECTOR, seletor)
             if botoes:
-                botoes[0].find_element(By.XPATH, "./ancestor::button").click()
+                host = botoes[0]
+                
+                # VERIFICAÇÃO DE PONTO DUPLICADO
+                ultimo_ponto = host.get_attribute("ultimo-ponto")
+                if ultimo_ponto and ultimo_ponto.startswith(hoje_str):
+                    msg = f"Aviso: Ponto '{nome}' já foi registrado hoje ({ultimo_ponto}). Ignorando novo clique."
+                    registrar_log(msg)
+                    return True
+                
+                botao_interno = driver.execute_script("return arguments[0].shadowRoot ? arguments[0].shadowRoot.querySelector('button') : arguments[0]", host)
+                if botao_interno:
+                    driver.execute_script("arguments[0].click();", botao_interno)
+                else:
+                    driver.execute_script("arguments[0].click();", host)
+                
                 msg = f"Opção '{nome}' selecionada. Página será reiniciada."
                 registrar_log(msg)
                 return True
@@ -113,10 +143,42 @@ def clicar_opcao(horario_atual):
         pyautogui.alert(msg, title="Bate Ponto")
         return False
 
+janela_visivel = None
+
+def gerenciar_janela():
+    global janela_visivel
+    try:
+        # A página está pronta se tivermos o campo de PIN ou os botões de ponto
+        elementos_prontos = driver.find_elements(By.CSS_SELECTOR, ".pagina-sincronizacao-pin__input-pin, pontotel-botao-ponto")
+        
+        if elementos_prontos:
+            if janela_visivel is not False:
+                # Tudo configurado (página de bater ponto normal), esconde a janela lá longe
+                driver.set_window_position(10000, 10000)
+                registrar_log("Configuração concluída. Janela oculta.")
+                janela_visivel = False
+            return False
+        else:
+            if janela_visivel is not True:
+                # A página precisa de login ou está carregando. Traz para a tela principal!
+                driver.set_window_position(50, 50)
+                registrar_log("Aguardando configuração manual (Login ou Setup). Janela exibida.")
+                janela_visivel = True
+            return True
+    except Exception as e:
+        registrar_log(f"Erro ao gerenciar janela: {e}")
+        return False
+
 def executar_fluxo():
+    # Gerencia a janela antes de tentar qualquer fluxo.
+    # Se ainda estiver na página de login, mantemos a janela visível
+    esperando_setup = gerenciar_janela()
+    if esperando_setup:
+        return True
+        
     horario_atual = horario_valido()
     if not horario_atual:
-        return
+        return False
 
     registrar_log(f"Horário válido detectado: {horario_atual}")
     try:
@@ -124,15 +186,17 @@ def executar_fluxo():
             time.sleep(1)
             if clicar_confirmar_pin():
                 time.sleep(2)
-                if clicar_confirmar_janela():
-                    time.sleep(2)
-                    if clicar_opcao(horario_atual):
-                        time.sleep(5)
-                        driver.refresh()
-    except Exception as e:
+                if clicar_opcao(horario_atual):
+                    time.sleep(5)
+                    driver.refresh()
+    except Exception as e:  
         registrar_log(f"Erro inesperado: {str(e)}")
+        
+    return False
 
 driver.get(url)
+time.sleep(3) # Aguarda carregar para avaliar URL
+gerenciar_janela()
 
 def focar_janela_do_chrome():
     try:
@@ -150,8 +214,11 @@ def main_loop():
     focar_janela_do_chrome()
     try:
         while True:
-            executar_fluxo()
-            time.sleep(intervalo_execucao)
+            esperando_setup = executar_fluxo()
+            if esperando_setup:
+                time.sleep(5)  # Checa rápido enquanto está configurando
+            else:
+                time.sleep(intervalo_execucao)  # Checa no intervalo normal de 60s
     except KeyboardInterrupt:
         registrar_log("Execução interrompida pelo usuário.")
         driver.quit()
