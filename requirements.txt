@@ -1,0 +1,6 @@
+selenium
+python-dotenv
+pillow
+pystray
+pygetwindow
+pyautogui
