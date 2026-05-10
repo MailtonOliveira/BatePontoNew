@@ -252,6 +252,20 @@ def horario_valido():
     horarios = get_horarios()
     return agora if agora in horarios else None
 
+# Adicionar funções para verificar final de semana e feriado
+def is_weekend():
+    hoje = datetime.datetime.now().weekday()
+    return hoje >= 5  # 5 é sábado, 6 é domingo
+
+def is_holiday():
+    # Lista de feriados no formato 'DD/MM'
+    feriados = [
+        "01/01",  # Ano Novo
+        "25/12"   # Natal
+    ]
+    hoje_str = datetime.datetime.now().strftime("%d/%m")
+    return hoje_str in feriados
+
 # ──────────────────────────────────────────────────────────────
 # Selenium setup
 # ──────────────────────────────────────────────────────────────
@@ -389,6 +403,12 @@ def executar_fluxo():
     esperando_setup = gerenciar_janela()
     if esperando_setup:
         return True
+
+    # Verificar se é final de semana ou feriado
+    if is_weekend() or is_holiday():
+        registrar_log("Hoje é final de semana ou feriado. Ponto não será batido.")
+        time.sleep(intervalo_execucao)
+        return False
 
     horario_atual = horario_valido()
     if not horario_atual:
