@@ -18,6 +18,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import pygetwindow as gw
 import pyautogui
+import requests  # Adicionado para fazer requisições HTTP
 
 # ──────────────────────────────────────────────────────────────
 # Carregar .env
@@ -258,13 +259,19 @@ def is_weekend():
     return hoje >= 5  # 5 é sábado, 6 é domingo
 
 def is_holiday():
-    # Lista de feriados no formato 'DD/MM'
-    feriados = [
-        "01/01",  # Ano Novo
-        "25/12"   # Natal
-    ]
-    hoje_str = datetime.datetime.now().strftime("%d/%m")
-    return hoje_str in feriados
+    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
+    api_url = f"https://feriadosapi.com/v3/feriados/nacionais/{hoje}"
+    
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()
+        feriados = response.json()
+        
+        # Verifica se hoje é um feriado nacional
+        return len(feriados) > 0
+    except requests.RequestException as e:
+        registrar_log(f"Erro ao consultar API de feriados: {str(e)}")
+        return False
 
 # ──────────────────────────────────────────────────────────────
 # Selenium setup
