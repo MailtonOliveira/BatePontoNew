@@ -10,6 +10,7 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
 - **Edição em Tempo Real:** Permite configurar os horários de batida através de uma janela nativa (Tkinter), propagando as alterações instantaneamente sem necessidade de reiniciar.
 - **Janela Discreta:** A janela do Chrome (necessária para login inicial) é posicionada fora da visão periférica (`position 10000,10000`) após o setup, operando de forma não-intrusiva.
 - **Proteção contra Duplicidade:** O script verifica o "último ponto registrado" no HTML para garantir que o mesmo ponto não seja batido duas vezes no mesmo dia.
+- **Verificação de Feriados:** Evita bater o ponto em dias de final de semana ou feriados nacionais.
 
 ---
 
