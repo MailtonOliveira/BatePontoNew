@@ -28,7 +28,7 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
 
 1. Baixe o executável `BatePonto.exe` gerado (se disponível na aba Releases).
 2. Na mesma pasta do executável, crie um arquivo chamado `.env`
-3. Copie o conteúdo do arquivo `.env.example` para o seu `.env` e preencha com a sua senha (PIN).
+3. Copie o conteúdo do arquivo `.env.example` para o seu `.env` e preencha com a sua senha (PIN) e chave de API.
 4. Execute o `BatePonto.exe`.
 
 ### Opção 2: Rodar do Código-Fonte
@@ -46,7 +46,7 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
    ```bash
    cp .env.example .env
    ```
-4. Edite o arquivo `.env` com seu **PIN** (senha).
+4. Edite o arquivo `.env` com seu **PIN** (senha) e chave de API.
 5. Inicie a automação:
    ```bash
    python main.py

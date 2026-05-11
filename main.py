@@ -263,7 +263,13 @@ def is_holiday():
     api_url = f"https://feriadosapi.com/v3/feriados/nacionais/{hoje}"
     
     try:
-        response = requests.get(api_url)
+        headers = {
+            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
+            # Ou, se a API aceitar X-API-Key
+            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
+        }
+        
+        response = requests.get(api_url, headers=headers)
         response.raise_for_status()
         feriados = response.json()
         
