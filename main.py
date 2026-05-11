@@ -270,7 +270,7 @@ def is_holiday():
         # Verifica se hoje é um feriado nacional
         return len(feriados) > 0
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados: {str(e)}")
+        registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
         return False
 
 # ──────────────────────────────────────────────────────────────
