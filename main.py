@@ -260,27 +260,20 @@ def is_weekend():
 
 def is_holiday():
     hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
+    api_url = f"https://feriadosapi.com/api/v1/feriados/data/{hoje}"
     
     try:
-        # Adicionar log para verificar a chave da API
-        feriados_api_key = os.getenv('FERIADOS_API_KEY')
-        registrar_log(f"Chave da API de Feriados: {feriados_api_key}")
-        
         headers = {
-            "Authorization": f"Bearer {feriados_api_key}",
+            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
             # Ou, se a API aceitar X-API-Key
-            # "X-API-Key": feriados_api_key
+            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
         }
-        
-        # Adicionar log para verificar os headers enviados
-        registrar_log(f"Headers enviados: {headers}")
         
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
         feriados = response.json()
         
-        # Verifica se hoje é um feriado nacional
+        # Verifica se hoje é um feriado nacional, estadual ou municipal
         return len(feriados) > 0
     except requests.RequestException as e:
         registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
