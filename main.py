@@ -260,7 +260,7 @@ def is_weekend():
 
 def is_holiday():
     hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    api_url = f"https://feriadosapi.com/v3/feriados/nacionais/{hoje}"
+    api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
     
     try:
         headers = {
