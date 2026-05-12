@@ -263,11 +263,18 @@ def is_holiday():
     api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
     
     try:
+        # Adicionar log para verificar a chave da API
+        feriados_api_key = os.getenv('FERIADOS_API_KEY')
+        registrar_log(f"Chave da API de Feriados: {feriados_api_key}")
+        
         headers = {
-            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
+            "Authorization": f"Bearer {feriados_api_key}",
             # Ou, se a API aceitar X-API-Key
-            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
+            # "X-API-Key": feriados_api_key
         }
+        
+        # Adicionar log para verificar os headers enviados
+        registrar_log(f"Headers enviados: {headers}")
         
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
