@@ -259,8 +259,9 @@ def is_weekend():
 
 # Novas funções para verificar feriados
 def is_national_holiday():
-    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
+    hoje = datetime.datetime.now()
+    ano_atual = hoje.year
+    api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais?ano={ano_atual}"
     
     try:
         headers = {
@@ -274,9 +275,12 @@ def is_national_holiday():
         feriados = response.json()
         
         # Verifica se hoje é um feriado nacional
-        return len(feriados) > 0
+        for feriado in feriados:
+            if feriado['data'] == hoje.strftime("%Y-%m-%d"):
+                return True
+        return False
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)}")
+        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
         return False
 
 def is_state_holiday():
@@ -334,7 +338,7 @@ def is_holiday():
         }
         
         # Verificar feriados nacionais
-        api_url_nacional = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
+        api_url_nacional = f"https://feriadosapi.com/api/v1/feriados/nacionais?ano={hoje.year}"
         response_nacional = requests.get(api_url_nacional, headers=headers)
         response_nacional.raise_for_status()
         feriados_nacionais = response_nacional.json()
