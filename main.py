@@ -253,14 +253,14 @@ def horario_valido():
     horarios = get_horarios()
     return agora if agora in horarios else None
 
-# Adicionar funções para verificar final de semana e feriado
 def is_weekend():
     hoje = datetime.datetime.now().weekday()
     return hoje >= 5  # 5 é sábado, 6 é domingo
 
-def is_holiday():
+# Novas funções para verificar feriados
+def is_national_holiday():
     hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    api_url = f"https://feriadosapi.com/api/v1/feriados/data/{hoje}"
+    api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
     
     try:
         headers = {
@@ -273,8 +273,88 @@ def is_holiday():
         response.raise_for_status()
         feriados = response.json()
         
-        # Verifica se hoje é um feriado nacional, estadual ou municipal
+        # Verifica se hoje é um feriado nacional
         return len(feriados) > 0
+    except requests.RequestException as e:
+        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        return False
+
+def is_state_holiday():
+    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
+    uf = "SP"  # Substitua pelo código da UF desejada
+    api_url = f"https://feriadosapi.com/api/v1/feriados/estado/{uf}/{hoje}"
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
+            # Ou, se a API aceitar X-API-Key
+            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
+        }
+        
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        feriados = response.json()
+        
+        # Verifica se hoje é um feriado estadual
+        return len(feriados) > 0
+    except requests.RequestException as e:
+        registrar_log(f"Erro ao consultar API de feriados estaduais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        return False
+
+def is_city_holiday():
+    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
+    ibge = "3550308"  # Substitua pelo código IBGE desejado
+    api_url = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}/{hoje}"
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
+            # Ou, se a API aceitar X-API-Key
+            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
+        }
+        
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        feriados = response.json()
+        
+        # Verifica se hoje é um feriado municipal
+        return len(feriados) > 0
+    except requests.RequestException as e:
+        registrar_log(f"Erro ao consultar API de feriados municipais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        return False
+
+def is_holiday():
+    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
+            # Ou, se a API aceitar X-API-Key
+            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
+        }
+        
+        # Verificar feriados nacionais
+        api_url_nacional = f"https://feriadosapi.com/api/v1/feriados/nacionais/{hoje}"
+        response_nacional = requests.get(api_url_nacional, headers=headers)
+        response_nacional.raise_for_status()
+        feriados_nacionais = response_nacional.json()
+        
+        # Verificar feriados estaduais
+        uf = "SP"  # Substitua pelo código da UF desejada
+        api_url_estado = f"https://feriadosapi.com/api/v1/feriados/estado/{uf}/{hoje}"
+        response_estado = requests.get(api_url_estado, headers=headers)
+        response_estado.raise_for_status()
+        feriados_estaduais = response_estado.json()
+        
+        # Verificar feriados municipais
+        ibge = "3550308"  # Substitua pelo código IBGE desejado
+        api_url_cidade = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}/{hoje}"
+        response_cidade = requests.get(api_url_cidade, headers=headers)
+        response_cidade.raise_for_status()
+        feriados_municipais = response_cidade.json()
+        
+        # Verifica se hoje é um feriado nacional, estadual ou municipal
+        return len(feriados_nacionais) > 0 or len(feriados_estaduais) > 0 or len(feriados_municipais) > 0
     except requests.RequestException as e:
         registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
         return False
