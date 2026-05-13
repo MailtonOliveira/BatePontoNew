@@ -280,12 +280,12 @@ def is_national_holiday():
                 return True
         return False
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)}")
         return False
 
 def is_state_holiday():
     hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    uf = "MG"  # Substitua pelo código da UF desejada
+    uf = "SP"  # Substitua pelo código da UF desejada
     api_url = f"https://feriadosapi.com/api/v1/feriados/estado/{uf}/{hoje}"
     
     try:
@@ -307,7 +307,7 @@ def is_state_holiday():
 
 def is_city_holiday():
     hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    ibge = "3142402"  # Substitua pelo código IBGE desejado
+    ibge = "3550308"  # Substitua pelo código IBGE desejado
     api_url = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}/{hoje}"
     
     try:
@@ -375,7 +375,7 @@ def is_holiday():
         
         return False
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        registrar_log(f"Erro ao consultar API de feriados: {str(e)}")
         return False
 
 # ──────────────────────────────────────────────────────────────
