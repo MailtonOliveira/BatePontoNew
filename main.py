@@ -276,7 +276,7 @@ def is_national_holiday():
         # Verifica se hoje é um feriado nacional
         return len(feriados) > 0
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)}")
         return False
 
 def is_state_holiday():
@@ -298,7 +298,7 @@ def is_state_holiday():
         # Verifica se hoje é um feriado estadual
         return len(feriados) > 0
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados estaduais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        registrar_log(f"Erro ao consultar API de feriados estaduais: {str(e)}")
         return False
 
 def is_city_holiday():
@@ -320,7 +320,7 @@ def is_city_holiday():
         # Verifica se hoje é um feriado municipal
         return len(feriados) > 0
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados municipais: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        registrar_log(f"Erro ao consultar API de feriados municipais: {str(e)}")
         return False
 
 def is_holiday():
@@ -356,7 +356,7 @@ def is_holiday():
         # Verifica se hoje é um feriado nacional, estadual ou municipal
         return len(feriados_nacionais) > 0 or len(feriados_estaduais) > 0 or len(feriados_municipais) > 0
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        registrar_log(f"Erro ao consultar API de feriados: {str(e)}")
         return False
 
 # ──────────────────────────────────────────────────────────────
