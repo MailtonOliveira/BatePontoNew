@@ -60,6 +60,45 @@ def test_init_driver_define_global_driver(tmp_path, monkeypatch):
                 m.driver = original_driver  # restaura
 
 
+def test_monitorar_pin_setup_retorna_pin_quando_pagina_muda():
+    """Deve retornar o PIN capturado quando a página de configuração desaparece."""
+    import main as m
+    import unittest.mock as mock
+
+    mock_driver = mock.MagicMock()
+    mock_input = mock.MagicMock()
+    mock_input.get_attribute.return_value = "1234"
+
+    # Primeira poll: elemento presente com PIN; segunda: elemento sumiu
+    mock_driver.find_elements.side_effect = [
+        [mock.MagicMock()],  # página de PIN presente
+        [],                  # página sumiu (usuário submeteu)
+    ]
+    mock_driver.execute_script.return_value = mock_input
+
+    with mock.patch.object(m, 'driver', mock_driver):
+        with mock.patch('time.sleep'):
+            resultado = m._monitorar_pin_setup(timeout_segundos=10)
+
+    assert resultado == "1234"
+
+
+def test_monitorar_pin_setup_retorna_none_no_timeout():
+    """Deve retornar None se o PIN não for capturado dentro do timeout."""
+    import main as m
+    import unittest.mock as mock
+
+    mock_driver = mock.MagicMock()
+    mock_driver.find_elements.return_value = []  # campo nunca aparece
+
+    with mock.patch.object(m, 'driver', mock_driver):
+        with mock.patch('time.sleep'):
+            with mock.patch('time.time', side_effect=[0, 0, 2]):  # simula timeout imediato
+                resultado = m._monitorar_pin_setup(timeout_segundos=1)
+
+    assert resultado is None
+
+
 def test_smoke():
     """Garante que o módulo de testes carrega sem erros."""
     assert True

@@ -532,6 +532,41 @@ def is_holiday():
         registrar_log(f"Erro ao verificar feriado: {e}. Assumindo dia útil.")
         return False
 
+
+def _monitorar_pin_setup(timeout_segundos=300):
+    """
+    Monitora o campo de PIN no Shadow DOM durante o setup inicial.
+    Retorna o PIN capturado quando a página desaparece, ou None no timeout.
+    """
+    seletor_pin = ".pagina-sincronizacao-pin__input-pin"
+    pin_capturado = None
+    inicio = time.time()
+
+    while time.time() - inicio < timeout_segundos:
+        try:
+            hosts = driver.find_elements(By.CSS_SELECTOR, seletor_pin)
+            if hosts:
+                campo = driver.execute_script(
+                    "return arguments[0].shadowRoot"
+                    " ? arguments[0].shadowRoot.querySelector('input')"
+                    " : arguments[0]",
+                    hosts[0]
+                )
+                if campo:
+                    val = campo.get_attribute("value") or ""
+                    if val:
+                        pin_capturado = val
+            else:
+                if pin_capturado:
+                    return pin_capturado
+        except Exception:
+            if pin_capturado:
+                return pin_capturado
+
+        time.sleep(0.5)
+
+    return None
+
 # ──────────────────────────────────────────────────────────────
 # Selenium setup
 # ──────────────────────────────────────────────────────────────
