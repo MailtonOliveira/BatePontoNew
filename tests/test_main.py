@@ -32,6 +32,9 @@ def test_feriados_api_key_constante_definida():
             constantes[node.targets[0].id] = node.value.value
     assert '_FERIADOS_API_KEY' in constantes
     assert len(constantes['_FERIADOS_API_KEY']) > 0
+    assert constantes['_FERIADOS_API_KEY'] != "SUA_CHAVE_AQUI", (
+        "Substitua _FERIADOS_API_KEY pela chave real antes de buildar!"
+    )
 
 
 def test_init_driver_define_global_driver(tmp_path, monkeypatch):

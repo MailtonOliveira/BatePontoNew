@@ -1070,7 +1070,8 @@ def main_loop():
 def on_systray_exit(icon, item):
     registrar_log("Encerrando pelo systray.")
     icon.stop()
-    driver.quit()
+    if driver is not None:
+        driver.quit()
     os._exit(0)
 
 
