@@ -536,24 +536,32 @@ def is_holiday():
 # Selenium setup
 # ──────────────────────────────────────────────────────────────
 
-options = Options()
-appdata_dir = os.environ.get('APPDATA')
-user_data_dir = os.path.join(appdata_dir, "BatePonto", "Chrome")
-os.makedirs(user_data_dir, exist_ok=True)
-options.add_argument(f"--user-data-dir={user_data_dir}")
-options.add_argument("--profile-directory=Default")
-options.add_argument("--window-size=1280,720")
-options.add_argument("--start-maximized")
+driver = None  # inicializado por _init_driver()
 
-print("[BatePonto] Abrindo Chrome...")
-try:
-    driver = webdriver.Chrome(options=options)
-    print("[BatePonto] Chrome aberto com sucesso.")
-except Exception as e:
-    print(f"[BatePonto] ERRO ao abrir Chrome: {e}")
-    print("[BatePonto] Verifique se o ChromeDriver está instalado e compatível com a versão do Chrome.")
-    print("[BatePonto] Dica: execute 'pip install --upgrade selenium' ou instale o webdriver-manager.")
-    sys.exit(1)
+
+def _init_driver():
+    """Inicializa o Chrome e navega para a URL do BatePonto."""
+    global driver
+    options = Options()
+    appdata_dir = os.environ.get('APPDATA')
+    user_data_dir = os.path.join(appdata_dir, "BatePonto", "Chrome")
+    os.makedirs(user_data_dir, exist_ok=True)
+    options.add_argument(f"--user-data-dir={user_data_dir}")
+    options.add_argument("--profile-directory=Default")
+    options.add_argument("--window-size=1280,720")
+    options.add_argument("--start-maximized")
+
+    print("[BatePonto] Abrindo Chrome...")
+    try:
+        driver = webdriver.Chrome(options=options)
+        print("[BatePonto] Chrome aberto com sucesso.")
+    except Exception as e:
+        print(f"[BatePonto] ERRO ao abrir Chrome: {e}")
+        sys.exit(1)
+
+    driver.get(url)
+    time.sleep(3)
+    gerenciar_janela()
 
 # ──────────────────────────────────────────────────────────────
 # Fluxo principal (inalterado na lógica)
@@ -678,9 +686,7 @@ def gerenciar_janela():
 # Startup
 # ──────────────────────────────────────────────────────────────
 
-driver.get(url)
-time.sleep(3)
-gerenciar_janela()
+_init_driver()
 
 
 def focar_janela_do_chrome():
