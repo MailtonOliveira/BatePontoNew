@@ -20,7 +20,8 @@ def test_feriados_api_key_constante_definida():
     """_FERIADOS_API_KEY deve ser uma string não-vazia definida no módulo."""
     import ast
     import pathlib
-    source = pathlib.Path('main.py').read_text(encoding='utf-8')
+    main_py_path = pathlib.Path(__file__).parent.parent / 'main.py'
+    source = main_py_path.read_text(encoding='utf-8')
     tree = ast.parse(source)
     constantes = {}
     for node in ast.walk(tree):
