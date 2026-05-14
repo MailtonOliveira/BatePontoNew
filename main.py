@@ -669,6 +669,62 @@ def abrir_setup_wizard():
     root.mainloop()
 
 
+def abrir_janela_alterar_pin():
+    """Abre janela para alterar o PIN armazenado no .env."""
+
+    def _criar_janela():
+        global senha
+
+        root = tk.Tk()
+        root.title("Alterar PIN")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+
+        largura, altura = 320, 220
+        x = (root.winfo_screenwidth() // 2) - (largura // 2)
+        y = (root.winfo_screenheight() // 2) - (altura // 2)
+        root.geometry(f"{largura}x{altura}+{x}+{y}")
+
+        root.configure(bg='#2b2b2b')
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
+                        font=('Segoe UI', 11))
+        style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+        style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
+                        font=('Segoe UI', 13, 'bold'))
+
+        ttk.Label(root, text="🔑 Alterar PIN", style='Header.TLabel').pack(pady=(18, 12))
+        ttk.Label(root, text="Novo PIN:").pack()
+
+        var_pin = tk.StringVar()
+        entry = ttk.Entry(root, textvariable=var_pin, width=14, justify='center',
+                          font=('Segoe UI', 13), show='*')
+        entry.pack(pady=(4, 16))
+        entry.focus()
+
+        def salvar():
+            global senha
+            pin = var_pin.get().strip()
+            if not pin:
+                messagebox.showerror("PIN inválido", "O PIN não pode ser vazio.", parent=root)
+                return
+            set_key(ENV_PATH, "BATEPONTO_SENHA", pin)
+            senha = pin
+            registrar_log("PIN alterado via systray.")
+            messagebox.showinfo("Salvo ✅", "PIN atualizado com sucesso!", parent=root)
+            root.destroy()
+
+        btn_frame = ttk.Frame(root, style='TLabel')
+        btn_frame.pack()
+        ttk.Button(btn_frame, text="💾 Salvar", command=salvar).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Cancelar", command=root.destroy).pack(side='left', padx=5)
+
+        root.mainloop()
+
+    threading.Thread(target=_criar_janela, daemon=True).start()
+
+
 # ──────────────────────────────────────────────────────────────
 # Cache de feriados (por ano, para evitar chamadas repetidas)
 # ──────────────────────────────────────────────────────────────
@@ -1046,11 +1102,16 @@ def configurar_localizacao_systray(icon, item):
     abrir_janela_localizacao()
 
 
+def alterar_pin_systray(icon, item):
+    abrir_janela_alterar_pin()
+
+
 threading.Thread(target=main_loop, daemon=True).start()
 
 icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu(
     pystray.MenuItem("⏰ Configurar Horários", configurar_horarios_systray),
     pystray.MenuItem("📍 Configurar Localização", configurar_localizacao_systray),
+    pystray.MenuItem("🔑 Alterar PIN", alterar_pin_systray),
     pystray.MenuItem("Último Log", mostrar_ultimo_log),
     pystray.MenuItem("Sair", on_systray_exit)
 ))
