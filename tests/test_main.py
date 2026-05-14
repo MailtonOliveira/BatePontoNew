@@ -11,6 +11,10 @@ sys.modules['PIL.ImageDraw'] = mock.MagicMock()
 sys.modules['pygetwindow'] = mock.MagicMock()
 sys.modules['pyautogui'] = mock.MagicMock()
 
+sys.modules['tkinter'] = mock.MagicMock()
+sys.modules['tkinter.ttk'] = mock.MagicMock()
+sys.modules['tkinter.messagebox'] = mock.MagicMock()
+
 
 def test_smoke():
     """Garante que o módulo de testes carrega sem erros."""
