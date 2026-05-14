@@ -330,6 +330,8 @@ def is_city_holiday():
 def is_holiday():
     hoje = datetime.datetime.now()
     ano_atual = hoje.year
+    ibge = "3106200"  # Substitua pelo código IBGE desejado
+    api_url = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}?ano={ano_atual}"
     
     try:
         headers = {
@@ -338,44 +340,17 @@ def is_holiday():
             # "X-API-Key": os.getenv('FERIADOS_API_KEY')
         }
         
-        # Verificar feriados nacionais
-        api_url_nacional = f"https://feriadosapi.com/api/v1/feriados/nacionais?ano={ano_atual}"
-        response_nacional = requests.get(api_url_nacional, headers=headers)
-        response_nacional.raise_for_status()
-        feriados_nacionais = response_nacional.json()
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        feriados = response.json()
         
-        # Verificar se hoje é um feriado nacional
-        for feriado in feriados_nacionais:
+        # Verifica se hoje é um feriado nacional ou municipal
+        for feriado in feriados:
             if feriado['data'] == hoje.strftime("%Y-%m-%d"):
                 return True
-        
-        # Verificar feriados estaduais
-        uf = "SP"  # Substitua pelo código da UF desejada
-        api_url_estado = f"https://feriadosapi.com/api/v1/feriados/estado/{uf}/{hoje.strftime('%Y-%m-%d')}"
-        response_estado = requests.get(api_url_estado, headers=headers)
-        response_estado.raise_for_status()
-        feriados_estaduais = response_estado.json()
-        
-        # Verificar se hoje é um feriado estadual
-        for feriado in feriados_estaduais:
-            if feriado['data'] == hoje.strftime("%Y-%m-%d"):
-                return True
-        
-        # Verificar feriados municipais
-        ibge = "3550308"  # Substitua pelo código IBGE desejado
-        api_url_cidade = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}/{hoje.strftime('%Y-%m-%d')}"
-        response_cidade = requests.get(api_url_cidade, headers=headers)
-        response_cidade.raise_for_status()
-        feriados_municipais = response_cidade.json()
-        
-        # Verificar se hoje é um feriado municipal
-        for feriado in feriados_municipais:
-            if feriado['data'] == hoje.strftime("%Y-%m-%d"):
-                return True
-        
         return False
     except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados: {str(e)}")
+        registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
         return False
 
 # ──────────────────────────────────────────────────────────────
