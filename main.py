@@ -542,6 +542,8 @@ driver = None  # inicializado por _init_driver()
 def _init_driver():
     """Inicializa o Chrome e navega para a URL do BatePonto."""
     global driver
+    if driver is not None:
+        return
     options = Options()
     appdata_dir = os.environ.get('APPDATA')
     user_data_dir = os.path.join(appdata_dir, "BatePonto", "Chrome")
