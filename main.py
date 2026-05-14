@@ -25,7 +25,7 @@ import requests  # Adicionado para fazer requisições HTTP
 # ──────────────────────────────────────────────────────────────
 # Chave da API de feriados (embutida no build — não exposta ao usuário)
 # ──────────────────────────────────────────────────────────────
-_FERIADOS_API_KEY = "SUA_CHAVE_AQUI"  # substitua pela chave real antes de buildar
+_FERIADOS_API_KEY = ""
 
 # ──────────────────────────────────────────────────────────────
 # Carregar .env
@@ -479,10 +479,77 @@ def abrir_janela_localizacao():
 # Wizard de primeiro uso
 # ──────────────────────────────────────────────────────────────
 
-def abrir_setup_wizard():
+def abrir_input_pin_simples():
+    """
+    Pede o PIN via input simples quando o perfil Chrome já tem o Pontotel configurado.
+    Roda na thread principal (bloqueia até concluir).
+    """
+    global senha
+
+    root = tk.Tk()
+    root.title("Bate Ponto — PIN")
+    root.resizable(False, False)
+    root.attributes('-topmost', True)
+
+    largura, altura = 360, 240
+    x = (root.winfo_screenwidth() // 2) - (largura // 2)
+    y = (root.winfo_screenheight() // 2) - (altura // 2)
+    root.geometry(f"{largura}x{altura}+{x}+{y}")
+
+    root.configure(bg='#2b2b2b')
+    style = ttk.Style()
+    style.theme_use('clam')
+    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
+                    font=('Segoe UI', 11))
+    style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
+                    font=('Segoe UI', 13, 'bold'))
+
+    ttk.Label(root, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(18, 8))
+    ttk.Label(root,
+              text="Perfil já configurado.\nDigite seu PIN para continuar:",
+              wraplength=300, justify='center').pack(pady=(0, 12))
+
+    var_pin = tk.StringVar()
+    entry = ttk.Entry(root, textvariable=var_pin, width=14, justify='center',
+                      font=('Segoe UI', 14), show='*')
+    entry.pack(pady=(0, 16))
+    entry.focus()
+
+    def salvar():
+        global senha
+        pin = var_pin.get().strip()
+        if not pin:
+            messagebox.showerror("PIN inválido", "O PIN não pode ser vazio.", parent=root)
+            return
+        set_key(ENV_PATH, "BATEPONTO_SENHA", pin)
+        senha = pin
+        registrar_log("PIN salvo via input simples (perfil já configurado).")
+        root.destroy()
+
+    def cancelar():
+        try:
+            if driver:
+                driver.quit()
+        except Exception:
+            pass
+        root.destroy()
+        os._exit(0)
+
+    root.bind('<Return>', lambda e: salvar())
+
+    btn_frame = ttk.Frame(root, style='TLabel')
+    btn_frame.pack()
+    ttk.Button(btn_frame, text="💾 Salvar", command=salvar).pack(side='left', padx=5)
+    ttk.Button(btn_frame, text="Cancelar", command=cancelar).pack(side='left', padx=5)
+
+    root.mainloop()
+
+
+def abrir_setup_wizard(pular_para_passo2=False):
     """
     Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir).
-    Abre o Chrome após o usuário clicar em 'Iniciar', monitora o PIN e salva.
+    Se pular_para_passo2=True, o Chrome já está aberto — vai direto para o passo 2.
     """
     global senha
 
@@ -628,7 +695,8 @@ def abrir_setup_wizard():
         registrar_log("PIN capturado e salvo durante setup inicial.")
 
     def _iniciar():
-        _init_driver()
+        if not pular_para_passo2:
+            _init_driver()
         _mostrar_passo2()
 
     def _reiniciar():
@@ -660,7 +728,10 @@ def abrir_setup_wizard():
             except Exception:
                 _mostrar_erro_chrome()
 
-    _mostrar_passo1()
+    if pular_para_passo2:
+        _mostrar_passo2()
+    else:
+        _mostrar_passo1()
     root.mainloop()
 
 
@@ -964,7 +1035,11 @@ def gerenciar_janela():
 # ──────────────────────────────────────────────────────────────
 
 if _primeiro_uso:
-    abrir_setup_wizard()
+    _init_driver()  # abre Chrome para detectar estado do perfil
+    if janela_visivel:  # Chrome visível = precisa de login = wizard completo
+        abrir_setup_wizard(pular_para_passo2=True)
+    else:  # Chrome oculto = perfil já configurado = só precisa do PIN
+        abrir_input_pin_simples()
 else:
     _init_driver()
 
