@@ -481,6 +481,195 @@ def abrir_janela_localizacao():
 
 
 # ──────────────────────────────────────────────────────────────
+# Wizard de primeiro uso
+# ──────────────────────────────────────────────────────────────
+
+def abrir_setup_wizard():
+    """
+    Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir).
+    Abre o Chrome após o usuário clicar em 'Iniciar', monitora o PIN e salva.
+    """
+    global senha
+
+    root = tk.Tk()
+    root.title("Bate Ponto — Configuração Inicial")
+    root.resizable(False, False)
+    root.attributes('-topmost', True)
+
+    largura, altura = 420, 320
+    x = (root.winfo_screenwidth() // 2) - (largura // 2)
+    y = (root.winfo_screenheight() // 2) - (altura // 2)
+    root.geometry(f"{largura}x{altura}+{x}+{y}")
+
+    root.configure(bg='#2b2b2b')
+    style = ttk.Style()
+    style.theme_use('clam')
+    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
+                    font=('Segoe UI', 11))
+    style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=8)
+    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
+                    font=('Segoe UI', 14, 'bold'))
+    style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa',
+                    font=('Segoe UI', 9))
+
+    content = tk.Frame(root, bg='#2b2b2b')
+    content.pack(fill='both', expand=True, padx=30, pady=20)
+
+    def _limpar():
+        for w in content.winfo_children():
+            w.destroy()
+
+    _spinner_chars = ['◐', '◓', '◑', '◒']
+    _spinner_idx = [0]
+    _spinner_job = [None]
+
+    def _mostrar_passo1():
+        _limpar()
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
+        ttk.Label(content, text="Bem-vindo! Vou te guiar pela configuração inicial.",
+                  wraplength=360, background='#2b2b2b', foreground='#ffffff',
+                  font=('Segoe UI', 11)).pack(pady=(0, 6))
+        ttk.Label(content,
+                  text="Na próxima etapa o Chrome vai abrir o site da Pontotel.\n"
+                       "Faça login com seu e-mail e senha.\n"
+                       "Quando o site pedir seu PIN, digite normalmente —\n"
+                       "o app vai capturá-lo sozinho.",
+                  wraplength=360, justify='left',
+                  background='#2b2b2b', foreground='#ffffff',
+                  font=('Segoe UI', 11)).pack(pady=(0, 20))
+        ttk.Button(content, text="Iniciar →", command=_iniciar).pack()
+
+    def _mostrar_passo2():
+        _limpar()
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
+        ttk.Label(content, text="Aguardando configuração...",
+                  font=('Segoe UI', 11, 'bold'), background='#2b2b2b',
+                  foreground='#ffffff').pack(pady=(0, 10))
+
+        for txt in ["●  Faça login no site da Pontotel",
+                    "●  Digite seu PIN quando pedido",
+                    "●  Não feche o Chrome"]:
+            tk.Label(content, text=txt, background='#2b2b2b', foreground='#aaaaaa',
+                     font=('Segoe UI', 9)).pack(anchor='w', pady=1)
+
+        spinner_var = tk.StringVar(value="◐  Detectando PIN...")
+        tk.Label(content, textvariable=spinner_var, background='#2b2b2b',
+                 foreground='#aaaaaa', font=('Segoe UI', 9)).pack(pady=(16, 0))
+
+        def _tick_spinner():
+            _spinner_idx[0] = (_spinner_idx[0] + 1) % len(_spinner_chars)
+            spinner_var.set(f"{_spinner_chars[_spinner_idx[0]]}  Detectando PIN...")
+            _spinner_job[0] = root.after(300, _tick_spinner)
+
+        _tick_spinner()
+        ttk.Button(content, text="Cancelar", command=_cancelar).pack(pady=(20, 0))
+
+        def _thread_monitoramento():
+            pin = _monitorar_pin_setup(timeout_segundos=300)
+            root.after(0, lambda: _on_pin_resultado(pin))
+
+        threading.Thread(target=_thread_monitoramento, daemon=True).start()
+
+    def _mostrar_conclusao():
+        if _spinner_job[0]:
+            root.after_cancel(_spinner_job[0])
+        _limpar()
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
+        tk.Label(content, text="✅ Configuração concluída!",
+                 font=('Segoe UI', 13, 'bold'), background='#2b2b2b',
+                 foreground='#4CAF50').pack(pady=(0, 10))
+        tk.Label(content,
+                 text="Seu PIN foi salvo com sucesso.\n"
+                      "O app está rodando em segundo plano —\n"
+                      "veja o ícone na bandeja do sistema.",
+                 wraplength=360, justify='center',
+                 background='#2b2b2b', foreground='#ffffff',
+                 font=('Segoe UI', 11)).pack(pady=(0, 20))
+        ttk.Button(content, text="Fechar", command=root.destroy).pack()
+
+    def _mostrar_fallback():
+        if _spinner_job[0]:
+            root.after_cancel(_spinner_job[0])
+        _limpar()
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
+        tk.Label(content,
+                 text="Não consegui capturar o PIN automaticamente.\n"
+                      "Digite-o manualmente:",
+                 wraplength=360, justify='center',
+                 background='#2b2b2b', foreground='#ffffff',
+                 font=('Segoe UI', 11)).pack(pady=(0, 10))
+        var_pin = tk.StringVar()
+        entry = ttk.Entry(content, textvariable=var_pin, width=12, justify='center',
+                          font=('Segoe UI', 14), show='*')
+        entry.pack(pady=(0, 16))
+        entry.focus()
+
+        def _salvar_manual():
+            pin = var_pin.get().strip()
+            if not pin:
+                messagebox.showerror("PIN inválido", "O PIN não pode ser vazio.", parent=root)
+                return
+            _salvar_pin(pin)
+            _mostrar_conclusao()
+
+        ttk.Button(content, text="💾 Salvar", command=_salvar_manual).pack()
+
+    def _mostrar_erro_chrome():
+        if _spinner_job[0]:
+            root.after_cancel(_spinner_job[0])
+        _limpar()
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
+        tk.Label(content, text="O Chrome foi fechado antes de concluir.",
+                 wraplength=360, justify='center',
+                 background='#2b2b2b', foreground='#ffffff',
+                 font=('Segoe UI', 11)).pack(pady=(0, 10))
+        ttk.Button(content, text="Tentar novamente", command=_reiniciar).pack(pady=(0, 6))
+        ttk.Button(content, text="Cancelar", command=_cancelar).pack()
+
+    def _salvar_pin(pin):
+        global senha
+        set_key(ENV_PATH, "BATEPONTO_SENHA", pin)
+        senha = pin
+        registrar_log("PIN capturado e salvo durante setup inicial.")
+
+    def _iniciar():
+        _init_driver()
+        _mostrar_passo2()
+
+    def _reiniciar():
+        global driver
+        driver = None  # força reinicialização
+        _init_driver()
+        _mostrar_passo2()
+
+    def _cancelar():
+        if _spinner_job[0]:
+            root.after_cancel(_spinner_job[0])
+        try:
+            if driver:
+                driver.quit()
+        except Exception:
+            pass
+        root.destroy()
+        os._exit(0)
+
+    def _on_pin_resultado(pin):
+        if pin:
+            _salvar_pin(pin)
+            _mostrar_conclusao()
+        else:
+            try:
+                if driver:
+                    driver.find_elements(By.CSS_SELECTOR, "body")
+                _mostrar_fallback()
+            except Exception:
+                _mostrar_erro_chrome()
+
+    _mostrar_passo1()
+    root.mainloop()
+
+
+# ──────────────────────────────────────────────────────────────
 # Cache de feriados (por ano, para evitar chamadas repetidas)
 # ──────────────────────────────────────────────────────────────
 
