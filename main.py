@@ -48,12 +48,7 @@ senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
 timeout_padrao = int(os.getenv("TIMEOUT_PADRAO", "15"))
 
-if not senha:
-    pyautogui.alert(
-        "BATEPONTO_SENHA não configurada!\nCrie um arquivo .env ao lado do executável.",
-        title="Bate Ponto — Erro"
-    )
-    sys.exit(1)
+_primeiro_uso = not senha
 
 # ──────────────────────────────────────────────────────────────
 # Horários (thread-safe)
@@ -968,7 +963,10 @@ def gerenciar_janela():
 # Startup
 # ──────────────────────────────────────────────────────────────
 
-_init_driver()
+if _primeiro_uso:
+    abrir_setup_wizard()
+else:
+    _init_driver()
 
 
 def focar_janela_do_chrome():
