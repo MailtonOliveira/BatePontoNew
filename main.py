@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import pystray
 from PIL import Image, ImageDraw
 import threading
@@ -7,6 +8,7 @@ import time
 import datetime
 import tempfile
 import re
+import unicodedata
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -19,6 +21,11 @@ from selenium.webdriver.support import expected_conditions as EC
 import pygetwindow as gw
 import pyautogui
 import requests  # Adicionado para fazer requisições HTTP
+
+# ──────────────────────────────────────────────────────────────
+# Chave da API de feriados (embutida no build — não exposta ao usuário)
+# ──────────────────────────────────────────────────────────────
+_FERIADOS_API_KEY = "SUA_CHAVE_AQUI"  # substitua pela chave real antes de buildar
 
 # ──────────────────────────────────────────────────────────────
 # Carregar .env
@@ -35,10 +42,11 @@ def get_env_path():
 ENV_PATH = get_env_path()
 load_dotenv(ENV_PATH)
 
+print("[BatePonto] Inicializando...")
+
 senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
 timeout_padrao = int(os.getenv("TIMEOUT_PADRAO", "15"))
-intervalo_execucao = int(os.getenv("INTERVALO_EXECUCAO", "60"))
 
 if not senha:
     pyautogui.alert(
@@ -257,100 +265,271 @@ def is_weekend():
     hoje = datetime.datetime.now().weekday()
     return hoje >= 5  # 5 é sábado, 6 é domingo
 
-# Novas funções para verificar feriados
-def is_national_holiday():
-    hoje = datetime.datetime.now()
-    ano_atual = hoje.year
-    api_url = f"https://feriadosapi.com/api/v1/feriados/nacionais?ano={ano_atual}"
-    
-    try:
-        headers = {
-            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
-            # Ou, se a API aceitar X-API-Key
-            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
-        }
-        
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-        feriados = response.json()
-        
-        # Verifica se hoje é um feriado nacional
-        for feriado in feriados:
-            if feriado['data'] == hoje.strftime("%Y-%m-%d"):
-                return True
-        return False
-    except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados nacionais: {str(e)}")
-        return False
+# ──────────────────────────────────────────────────────────────
+# Detecção automática de localização
+# ──────────────────────────────────────────────────────────────
 
-def is_state_holiday():
-    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    uf = "SP"  # Substitua pelo código da UF desejada
-    api_url = f"https://feriadosapi.com/api/v1/feriados/estado/{uf}/{hoje}"
-    
-    try:
-        headers = {
-            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
-            # Ou, se a API aceitar X-API-Key
-            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
-        }
-        
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-        feriados = response.json()
-        
-        # Verifica se hoje é um feriado estadual
-        return len(feriados) > 0
-    except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados estaduais: {str(e)}")
-        return False
+_localizacao_cache = None       # (uf, ibge) — localização ativa
+_localizacao_auto_info = None   # {'uf', 'ibge', 'cidade'} — detectada via IP
+_localizacao_lock = threading.Lock()
 
-def is_city_holiday():
-    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    ibge = "3550308"  # Substitua pelo código IBGE desejado
-    api_url = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}/{hoje}"
-    
-    try:
-        headers = {
-            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
-            # Ou, se a API aceitar X-API-Key
-            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
-        }
-        
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-        feriados = response.json()
-        
-        # Verifica se hoje é um feriado municipal
-        return len(feriados) > 0
-    except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados municipais: {str(e)}")
-        return False
+
+def _normalizar_nome(nome):
+    nfkd = unicodedata.normalize('NFKD', nome)
+    return ''.join(c for c in nfkd if not unicodedata.combining(c)).lower()
+
+
+def _resolver_ibge_por_cidade(uf, cidade):
+    """Resolve código IBGE e nome oficial para uma cidade/UF. Retorna (ibge_code, nome) ou (None, None)."""
+    resp = requests.get(
+        f"https://servicodados.ibge.gov.br/api/v1/localidades/estados/{uf}/municipios",
+        timeout=10
+    )
+    resp.raise_for_status()
+    municipios = resp.json()
+    cidade_norm = _normalizar_nome(cidade)
+
+    for m in municipios:
+        if _normalizar_nome(m["nome"]) == cidade_norm:
+            return str(m["id"]), m["nome"]
+
+    for m in municipios:
+        nome_norm = _normalizar_nome(m["nome"])
+        if cidade_norm in nome_norm or nome_norm in cidade_norm:
+            registrar_log(f"Município aproximado: {m['nome']} ({m['id']})")
+            return str(m["id"]), m["nome"]
+
+    return None, None
+
+
+def detectar_localizacao():
+    """
+    Detecta UF e IBGE via IP (sempre primeiro).
+    Fallback: valores do .env ou padrão SP/3550308.
+    """
+    global _localizacao_cache, _localizacao_auto_info
+    with _localizacao_lock:
+        if _localizacao_cache:
+            return _localizacao_cache
+
+        # 1. Detecção via IP (sempre primeiro)
+        try:
+            geo_resp = requests.get(
+                "http://ip-api.com/json/?lang=pt-BR&fields=status,city,region",
+                timeout=5
+            )
+            geo_resp.raise_for_status()
+            geo = geo_resp.json()
+
+            if geo.get("status") != "success":
+                raise ValueError(f"ip-api retornou status inesperado: {geo.get('status')}")
+
+            uf = geo.get("region", "").strip()
+            cidade = geo.get("city", "").strip()
+
+            if not uf or not cidade:
+                raise ValueError(f"ip-api não retornou region/city: {geo}")
+            registrar_log(f"Localização detectada via IP: {cidade}/{uf}")
+
+            ibge_code, nome_oficial = _resolver_ibge_por_cidade(uf, cidade)
+            if not ibge_code:
+                raise ValueError(f"Município '{cidade}' não encontrado na UF {uf}")
+
+            _localizacao_auto_info = {'uf': uf, 'ibge': ibge_code, 'cidade': nome_oficial or cidade}
+            _localizacao_cache = (uf, ibge_code)
+            registrar_log(f"Localização resolvida: {cidade}/{uf} (IBGE {ibge_code})")
+            return _localizacao_cache
+
+        except Exception as e:
+            registrar_log(f"Erro ao detectar localização automaticamente: {e}")
+
+        # 2. Fallback para valores do .env ou padrão
+        uf_fallback = os.getenv("REGIAO_UF", "SP")
+        ibge_fallback = os.getenv("REGIAO_IBGE", "3550308")
+        _localizacao_cache = (uf_fallback, ibge_fallback)
+        registrar_log(f"Usando localização de fallback: UF={uf_fallback}, IBGE={ibge_fallback}")
+        return _localizacao_cache
+
+
+def abrir_janela_localizacao():
+    """Abre janela para configurar localização manualmente, com resolução de conflito se diferir do IP."""
+
+    def _criar_janela():
+        global _localizacao_cache, _feriados_cache
+
+        with _localizacao_lock:
+            auto = _localizacao_auto_info
+
+        root = tk.Tk()
+        root.title("Configurar Localização")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+
+        largura, altura = 400, 310
+        x = (root.winfo_screenwidth() // 2) - (largura // 2)
+        y = (root.winfo_screenheight() // 2) - (altura // 2)
+        root.geometry(f"{largura}x{altura}+{x}+{y}")
+
+        root.configure(bg='#2b2b2b')
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
+        style.configure('TEntry', font=('Segoe UI', 11))
+        style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+        style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
+                        font=('Segoe UI', 13, 'bold'))
+        style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa',
+                        font=('Segoe UI', 9))
+
+        ttk.Label(root, text="📍 Localização", style='Header.TLabel').pack(pady=(15, 4))
+
+        if auto:
+            info_txt = f"Detectado via IP: {auto['cidade']}/{auto['uf']} (IBGE: {auto['ibge']})"
+        else:
+            info_txt = "Detecção via IP: não disponível"
+        ttk.Label(root, text=info_txt, style='Info.TLabel').pack(pady=(0, 12))
+
+        frame = ttk.Frame(root, style='TLabel')
+        frame.pack(padx=20, fill='x')
+
+        ttk.Label(frame, text="UF:").grid(row=0, column=0, sticky='w', pady=6, padx=(0, 10))
+        var_uf = tk.StringVar(value=os.getenv("REGIAO_UF", ""))
+        ttk.Entry(frame, textvariable=var_uf, width=6, justify='center',
+                  font=('Segoe UI', 12)).grid(row=0, column=1, pady=6, sticky='w')
+
+        ttk.Label(frame, text="Cidade:").grid(row=1, column=0, sticky='w', pady=6, padx=(0, 10))
+        var_cidade = tk.StringVar(value=os.getenv("REGIAO_CIDADE", ""))
+        ttk.Entry(frame, textvariable=var_cidade, width=28, justify='left',
+                  font=('Segoe UI', 12)).grid(row=1, column=1, pady=6, sticky='w')
+
+        status_var = tk.StringVar()
+        ttk.Label(root, textvariable=status_var, style='Info.TLabel').pack(pady=(6, 0))
+
+        def salvar():
+            global _localizacao_cache, _feriados_cache
+
+            uf = var_uf.get().strip().upper()
+            cidade = var_cidade.get().strip()
+
+            if len(uf) != 2 or not uf.isalpha():
+                messagebox.showerror("UF inválida", "Informe uma UF válida com 2 letras (ex: MG, SP).", parent=root)
+                return
+            if not cidade:
+                messagebox.showerror("Cidade inválida", "Informe o nome da cidade.", parent=root)
+                return
+
+            status_var.set("Buscando código IBGE...")
+            root.update()
+
+            try:
+                ibge_code, nome_oficial = _resolver_ibge_por_cidade(uf, cidade)
+            except Exception as e:
+                messagebox.showerror("Erro", f"Erro ao consultar API do IBGE:\n{e}", parent=root)
+                status_var.set("")
+                return
+
+            if not ibge_code:
+                messagebox.showerror(
+                    "Não encontrado",
+                    f"Cidade '{cidade}' não encontrada na UF {uf}.\nVerifique o nome e tente novamente.",
+                    parent=root
+                )
+                status_var.set("")
+                return
+
+            uf_final, ibge_final, cidade_final = uf, ibge_code, nome_oficial
+
+            # Conflito com localização automática?
+            if auto and (ibge_code != auto['ibge'] or uf != auto['uf']):
+                escolha = messagebox.askquestion(
+                    "Localização diferente da detectada",
+                    f"A localização manual difere da detectada via IP.\n\n"
+                    f"  Automático:  {auto['cidade']}/{auto['uf']}  (IBGE {auto['ibge']})\n"
+                    f"  Manual:      {nome_oficial}/{uf}  (IBGE {ibge_code})\n\n"
+                    f"Deseja usar a localização manual?\n"
+                    f"(Clique 'Não' para manter a automática)",
+                    icon='question',
+                    parent=root
+                )
+                if escolha == 'no':
+                    uf_final = auto['uf']
+                    ibge_final = auto['ibge']
+                    cidade_final = auto['cidade']
+
+            with _localizacao_lock:
+                _localizacao_cache = (uf_final, ibge_final)
+
+            set_key(ENV_PATH, "REGIAO_UF", uf_final)
+            set_key(ENV_PATH, "REGIAO_IBGE", ibge_final)
+            set_key(ENV_PATH, "REGIAO_CIDADE", cidade_final)
+
+            with _feriados_cache_lock:
+                _feriados_cache.clear()
+
+            registrar_log(f"Localização definida: {cidade_final}/{uf_final} (IBGE {ibge_final})")
+            messagebox.showinfo("Salvo ✅", f"Localização ativa: {cidade_final}/{uf_final}", parent=root)
+            root.destroy()
+
+        btn_frame = ttk.Frame(root, style='TLabel')
+        btn_frame.pack(pady=14)
+        ttk.Button(btn_frame, text="💾 Salvar", command=salvar).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Cancelar", command=root.destroy).pack(side='left', padx=5)
+
+        root.mainloop()
+
+    threading.Thread(target=_criar_janela, daemon=True).start()
+
+
+# ──────────────────────────────────────────────────────────────
+# Cache de feriados (por ano, para evitar chamadas repetidas)
+# ──────────────────────────────────────────────────────────────
+
+_feriados_cache = {}
+_feriados_cache_lock = threading.Lock()
+
+
+def _carregar_feriados_do_ano(ano):
+    """Carrega e cacheia feriados nacionais + municipais do ano via feriadosapi.com."""
+    with _feriados_cache_lock:
+        if ano in _feriados_cache:
+            return _feriados_cache[ano]
+
+        uf, ibge = detectar_localizacao()
+        headers = {"Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY', _FERIADOS_API_KEY)}"}
+        datas = set()
+
+        def _extrair_data(item):
+            if isinstance(item, str):
+                return item
+            if isinstance(item, dict):
+                return item.get("data") or item.get("date") or item.get("Data")
+            return None
+
+        try:
+            r = requests.get(
+                f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}?ano={ano}",
+                headers=headers, timeout=10
+            )
+            r.raise_for_status()
+            for f in r.json():
+                data = _extrair_data(f)
+                if data:
+                    datas.add(data)
+        except Exception as e:
+            registrar_log(f"Erro ao carregar feriados {ano} (IBGE {ibge}): {e}")
+
+        _feriados_cache[ano] = datas
+        registrar_log(f"Feriados {ano} carregados: {len(datas)} datas (UF={uf}, IBGE={ibge})")
+        return datas
+
 
 def is_holiday():
     hoje = datetime.datetime.now()
-    ano_atual = hoje.year
-    ibge = "3106200"  # Substitua pelo código IBGE desejado
-    api_url = f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}?ano={ano_atual}"
-    
     try:
-        headers = {
-            "Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY')}",
-            # Ou, se a API aceitar X-API-Key
-            # "X-API-Key": os.getenv('FERIADOS_API_KEY')
-        }
-        
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-        feriados = response.json()
-        
-        # Verifica se hoje é um feriado nacional ou municipal
-        for feriado in feriados:
-            if feriado['data'] == hoje.strftime("%Y-%m-%d"):
-                return True
-        return False
-    except requests.RequestException as e:
-        registrar_log(f"Erro ao consultar API de feriados: {str(e)} - Status Code: {response.status_code} - Conteúdo: {response.text}")
+        feriados = _carregar_feriados_do_ano(hoje.year)
+        return hoje.strftime("%Y-%m-%d") in feriados
+    except Exception as e:
+        registrar_log(f"Erro ao verificar feriado: {e}. Assumindo dia útil.")
         return False
 
 # ──────────────────────────────────────────────────────────────
@@ -365,7 +544,16 @@ options.add_argument(f"--user-data-dir={user_data_dir}")
 options.add_argument("--profile-directory=Default")
 options.add_argument("--window-size=1280,720")
 options.add_argument("--start-maximized")
-driver = webdriver.Chrome(options=options)
+
+print("[BatePonto] Abrindo Chrome...")
+try:
+    driver = webdriver.Chrome(options=options)
+    print("[BatePonto] Chrome aberto com sucesso.")
+except Exception as e:
+    print(f"[BatePonto] ERRO ao abrir Chrome: {e}")
+    print("[BatePonto] Verifique se o ChromeDriver está instalado e compatível com a versão do Chrome.")
+    print("[BatePonto] Dica: execute 'pip install --upgrade selenium' ou instale o webdriver-manager.")
+    sys.exit(1)
 
 # ──────────────────────────────────────────────────────────────
 # Fluxo principal (inalterado na lógica)
@@ -486,35 +674,6 @@ def gerenciar_janela():
         return False
 
 
-def executar_fluxo():
-    esperando_setup = gerenciar_janela()
-    if esperando_setup:
-        return True
-
-    # Verificar se é final de semana ou feriado
-    if is_weekend() or is_holiday():
-        registrar_log("Hoje é final de semana ou feriado. Ponto não será batido.")
-        time.sleep(intervalo_execucao)
-        return False
-
-    horario_atual = horario_valido()
-    if not horario_atual:
-        return False
-
-    registrar_log(f"Horário válido detectado: {horario_atual}")
-    try:
-        if preencher_senha():
-            time.sleep(1)
-            if clicar_confirmar_pin():
-                time.sleep(2)
-                if clicar_opcao(horario_atual):
-                    time.sleep(5)
-                    driver.refresh()
-    except Exception as e:
-        registrar_log(f"Erro inesperado: {str(e)}")
-
-    return False
-
 # ──────────────────────────────────────────────────────────────
 # Startup
 # ──────────────────────────────────────────────────────────────
@@ -536,19 +695,84 @@ def focar_janela_do_chrome():
         registrar_log(f"Erro ao focar janela: {e}")
 
 
+def segundos_ate_proximo_ponto():
+    """Retorna quantos segundos faltam para o próximo horário de ponto configurado."""
+    agora = datetime.datetime.now()
+    horarios = get_horarios()
+    proximos = []
+    for horario_str in horarios:
+        h, m = map(int, horario_str.split(':'))
+        candidato = agora.replace(hour=h, minute=m, second=0, microsecond=0)
+        if candidato <= agora:
+            candidato += datetime.timedelta(days=1)
+        proximos.append(candidato)
+    if not proximos:
+        return 60
+    return max(1, (min(proximos) - agora).total_seconds())
+
+
 def main_loop():
     registrar_log("Script iniciado e monitorando horários...")
     horarios = get_horarios()
     resumo = ', '.join(f"{info['nome']}={h}" for h, info in horarios.items())
     registrar_log(f"Horários configurados: {resumo}")
+    detectar_localizacao()
     focar_janela_do_chrome()
+
+    _ANTECEDENCIA = 10  # segundos antes do ponto para iniciar polling fino
+
     try:
         while True:
-            esperando_setup = executar_fluxo()
-            if esperando_setup:
+            # Aguarda login/setup manual se necessário
+            if gerenciar_janela():
                 time.sleep(5)
-            else:
-                time.sleep(intervalo_execucao)
+                continue
+
+            # Pula fins de semana e feriados (dorme até o dia seguinte)
+            if is_weekend() or is_holiday():
+                registrar_log("Hoje é final de semana ou feriado. Ponto não será batido.")
+                agora = datetime.datetime.now()
+                amanha = (agora + datetime.timedelta(days=1)).replace(
+                    hour=0, minute=5, second=0, microsecond=0)
+                time.sleep((amanha - agora).total_seconds())
+                continue
+
+            # Smart sleep: dorme até _ANTECEDENCIA segundos antes do próximo ponto
+            faltam = segundos_ate_proximo_ponto()
+            if faltam > _ANTECEDENCIA:
+                proximo_str = (
+                    datetime.datetime.now() + datetime.timedelta(seconds=faltam)
+                ).strftime("%H:%M")
+                registrar_log(f"Próximo ponto às {proximo_str} (em {int(faltam)}s). Aguardando...")
+                time.sleep(faltam - _ANTECEDENCIA)
+
+            # Polling fino: espera o segundo exato (janela de até 20s)
+            horario_atual = None
+            for _ in range(20):
+                horario_atual = horario_valido()
+                if horario_atual:
+                    break
+                time.sleep(1)
+
+            if not horario_atual:
+                continue
+
+            # Executa o ponto
+            registrar_log(f"Horário válido detectado: {horario_atual}")
+            try:
+                if preencher_senha():
+                    time.sleep(1)
+                    if clicar_confirmar_pin():
+                        time.sleep(2)
+                        if clicar_opcao(horario_atual):
+                            time.sleep(5)
+                            driver.refresh()
+            except Exception as e:
+                registrar_log(f"Erro inesperado: {str(e)}")
+
+            # Sai da janela do minuto atual antes de recalcular o próximo
+            time.sleep(65)
+
     except KeyboardInterrupt:
         registrar_log("Execução interrompida pelo usuário.")
         driver.quit()
@@ -561,7 +785,7 @@ def on_systray_exit(icon, item):
     registrar_log("Encerrando pelo systray.")
     icon.stop()
     driver.quit()
-    sys.exit()
+    os._exit(0)
 
 
 def mostrar_ultimo_log(icon, item):
@@ -586,10 +810,15 @@ def configurar_horarios_systray(icon, item):
     abrir_janela_configuracao()
 
 
+def configurar_localizacao_systray(icon, item):
+    abrir_janela_localizacao()
+
+
 threading.Thread(target=main_loop, daemon=True).start()
 
 icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu(
     pystray.MenuItem("⏰ Configurar Horários", configurar_horarios_systray),
+    pystray.MenuItem("📍 Configurar Localização", configurar_localizacao_systray),
     pystray.MenuItem("Último Log", mostrar_ultimo_log),
     pystray.MenuItem("Sair", on_systray_exit)
 ))
