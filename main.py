@@ -1005,6 +1005,7 @@ def clicar_opcao(horario_atual):
 # ──────────────────────────────────────────────────────────────
 
 janela_visivel = None
+systray_icon = None
 
 
 def gerenciar_janela():
@@ -1104,7 +1105,7 @@ def main_loop():
                 proximo_str = (
                     datetime.datetime.now() + datetime.timedelta(seconds=faltam)
                 ).strftime("%H:%M")
-                registrar_log(f"Próximo ponto às {proximo_str} (em {int(faltam)}s). Aguardando...")
+                registrar_log(f"Próximo ponto às {proximo_str}. Aguardando...")
                 time.sleep(faltam - _ANTECEDENCIA)
 
             # Polling fino: espera o segundo exato (janela de até 20s)
@@ -1126,6 +1127,13 @@ def main_loop():
                     if clicar_confirmar_pin():
                         time.sleep(2)
                         if clicar_opcao(horario_atual):
+                            horarios = get_horarios()
+                            nome_ponto = horarios.get(horario_atual, {}).get('nome', horario_atual)
+                            agora_str = datetime.datetime.now().strftime("%H:%M")
+                            msg_ok = f"{nome_ponto} registrado às {agora_str}"
+                            registrar_log(f"Ponto batido: {msg_ok}")
+                            if systray_icon:
+                                systray_icon.notify(msg_ok, "Ponto Batido!")
                             time.sleep(5)
                             driver.refresh()
             except Exception as e:
@@ -1190,4 +1198,5 @@ icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu
     pystray.MenuItem("Sair", on_systray_exit)
 ))
 
+systray_icon = icon
 icon.run()
