@@ -923,34 +923,34 @@ _feriados_cache_lock = threading.Lock()
 
 
 def _carregar_feriados_do_ano(ano):
-    """Carrega e cacheia feriados nacionais + municipais do ano via feriadosapi.com."""
+    """Carrega e cacheia feriados: nacionais (BrasilAPI) + estaduais + municipais da capital."""
     with _feriados_cache_lock:
         if ano in _feriados_cache:
             return _feriados_cache[ano]
 
         uf, ibge = detectar_localizacao()
-        headers = {"Authorization": f"Bearer {os.getenv('FERIADOS_API_KEY', _FERIADOS_API_KEY)}"}
         datas = set()
-
-        def _extrair_data(item):
-            if isinstance(item, str):
-                return item
-            if isinstance(item, dict):
-                return item.get("data") or item.get("date") or item.get("Data")
-            return None
 
         try:
             r = requests.get(
-                f"https://feriadosapi.com/api/v1/feriados/cidade/{ibge}?ano={ano}",
-                headers=headers, timeout=10
+                f"https://brasilapi.com.br/api/feriados/v1/{ano}",
+                timeout=10
             )
             r.raise_for_status()
             for f in r.json():
-                data = _extrair_data(f)
+                data = f.get("date", "")
                 if data:
                     datas.add(data)
         except Exception as e:
-            registrar_log(f"Erro ao carregar feriados {ano} (IBGE {ibge}): {e}")
+            registrar_log(f"BrasilAPI indisponível ({e}). Usando fallback local.")
+            datas |= _feriados_nacionais_fallback(ano)
+
+        for mes, dia, _ in FERIADOS_ESTADUAIS.get(uf, []):
+            datas.add(f"{ano}-{mes:02d}-{dia:02d}")
+
+        if ibge == IBGE_CAPITAIS.get(uf):
+            for mes, dia, _ in FERIADOS_MUNICIPAIS_CAPITAIS.get(uf, []):
+                datas.add(f"{ano}-{mes:02d}-{dia:02d}")
 
         _feriados_cache[ano] = datas
         registrar_log(f"Feriados {ano} carregados: {len(datas)} datas (UF={uf}, IBGE={ibge})")

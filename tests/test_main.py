@@ -117,6 +117,60 @@ def test_smoke():
     assert True
 
 
+def test_carregar_feriados_brasilapi_sucesso():
+    """Com BrasilAPI disponível, deve incluir nacionais + estaduais + municipais de SP capital."""
+    import main as m
+
+    resposta_api = [
+        {"date": "2025-01-01", "name": "Confraternização Universal", "type": "national"},
+        {"date": "2025-04-18", "name": "Sexta-feira Santa", "type": "national"},
+    ]
+    mock_resp = mock.MagicMock()
+    mock_resp.json.return_value = resposta_api
+    mock_resp.raise_for_status.return_value = None
+
+    with mock.patch('main.requests.get', return_value=mock_resp):
+        with mock.patch('main.detectar_localizacao', return_value=("SP", "3550308")):
+            with mock.patch.object(m, '_feriados_cache', {}):
+                datas = m._carregar_feriados_do_ano(2025)
+
+    assert "2025-01-01" in datas      # nacional via API
+    assert "2025-04-18" in datas      # nacional via API
+    assert "2025-07-09" in datas      # estadual SP (Revolução Constitucionalista)
+    assert "2025-01-25" in datas      # municipal SP capital (Aniversário de SP)
+
+
+def test_carregar_feriados_brasilapi_falha_usa_fallback():
+    """Com BrasilAPI indisponível, deve usar fallback local com feriados nacionais."""
+    import main as m
+
+    with mock.patch('main.requests.get', side_effect=Exception("timeout")):
+        with mock.patch('main.detectar_localizacao', return_value=("SP", "3550308")):
+            with mock.patch.object(m, '_feriados_cache', {}):
+                datas = m._carregar_feriados_do_ano(2025)
+
+    assert "2025-01-01" in datas      # fallback: Confraternização
+    assert "2025-12-25" in datas      # fallback: Natal
+    assert "2025-07-09" in datas      # estadual SP (mesmo sem API)
+
+
+def test_carregar_feriados_interior_nao_recebe_municipais_capital():
+    """Usuário em Campinas (interior SP) não deve receber feriados municipais de SP capital."""
+    import main as m
+
+    mock_resp = mock.MagicMock()
+    mock_resp.json.return_value = []
+    mock_resp.raise_for_status.return_value = None
+
+    with mock.patch('main.requests.get', return_value=mock_resp):
+        with mock.patch('main.detectar_localizacao', return_value=("SP", "3509502")):
+            with mock.patch.object(m, '_feriados_cache', {}):
+                datas = m._carregar_feriados_do_ano(2025)
+
+    assert "2025-01-25" not in datas  # aniversário de SP não se aplica a Campinas
+    assert "2025-07-09" in datas      # estadual SP continua valendo
+
+
 def test_calcular_pascoa_datas_conhecidas():
     """Algoritmo de Butcher deve bater com datas históricas conhecidas."""
     import datetime
