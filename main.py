@@ -23,11 +23,6 @@ import pyautogui
 import requests  # Adicionado para fazer requisições HTTP
 
 # ──────────────────────────────────────────────────────────────
-# Chave da API de feriados (embutida no build — não exposta ao usuário)
-# ──────────────────────────────────────────────────────────────
-_FERIADOS_API_KEY = ""
-
-# ──────────────────────────────────────────────────────────────
 # Carregar .env
 # ──────────────────────────────────────────────────────────────
 

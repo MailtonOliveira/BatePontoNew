@@ -26,51 +26,24 @@ sys.modules['selenium.webdriver.support.ui'] = mock.MagicMock()
 sys.modules['selenium.webdriver.support.expected_conditions'] = mock.MagicMock()
 
 
-def test_feriados_api_key_constante_definida():
-    """_FERIADOS_API_KEY deve ser uma string não-vazia definida no módulo."""
-    import ast
-    import pathlib
-    main_py_path = pathlib.Path(__file__).parent.parent / 'main.py'
-    source = main_py_path.read_text(encoding='utf-8')
-    tree = ast.parse(source)
-    constantes = {}
-    for node in ast.walk(tree):
-        if (isinstance(node, ast.Assign)
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == '_FERIADOS_API_KEY'
-                and isinstance(node.value, ast.Constant)):
-            constantes[node.targets[0].id] = node.value.value
-    assert '_FERIADOS_API_KEY' in constantes
-    assert len(constantes['_FERIADOS_API_KEY']) > 0
-    assert constantes['_FERIADOS_API_KEY'] != "SUA_CHAVE_AQUI", (
-        "Substitua _FERIADOS_API_KEY pela chave real antes de buildar!"
-    )
 
-
-def test_init_driver_define_global_driver(tmp_path, monkeypatch):
+def test_init_driver_define_global_driver():
     """_init_driver() deve atribuir um objeto Chrome à variável global driver."""
-    import importlib
-    import unittest.mock as mock
+    import main as m
 
     mock_driver = mock.MagicMock()
 
-    # Precisamos de um .env temporário para o import não falhar
-    env_file = tmp_path / '.env'
-    env_file.write_text('BATEPONTO_SENHA=1234\n', encoding='utf-8')
-
-    with mock.patch('selenium.webdriver.Chrome', return_value=mock_driver):
+    # Patcha no namespace real de main (webdriver já é MagicMock de sys.modules)
+    with mock.patch.object(m.webdriver, 'Chrome', return_value=mock_driver):
         with mock.patch('os.makedirs'):
-            with mock.patch('time.sleep'):
-                # Import main como módulo (mas com driver=None já definido)
-                import main as m
-                original_driver = m.driver
-                m.driver = None
+            original_driver = m.driver
+            m.driver = None
 
-                with mock.patch.object(m, 'gerenciar_janela'):
-                    m._init_driver()
+            with mock.patch.object(m, 'gerenciar_janela'):
+                m._init_driver()
 
-                assert m.driver is mock_driver
-                m.driver = original_driver  # restaura
+            assert m.driver is mock_driver
+            m.driver = original_driver  # restaura
 
 
 def test_monitorar_pin_setup_retorna_pin_quando_pagina_muda():
