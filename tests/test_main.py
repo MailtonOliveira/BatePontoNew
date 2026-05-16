@@ -15,6 +15,16 @@ sys.modules['tkinter'] = mock.MagicMock()
 sys.modules['tkinter.ttk'] = mock.MagicMock()
 sys.modules['tkinter.messagebox'] = mock.MagicMock()
 
+sys.modules['selenium'] = mock.MagicMock()
+sys.modules['selenium.webdriver'] = mock.MagicMock()
+sys.modules['selenium.webdriver.chrome'] = mock.MagicMock()
+sys.modules['selenium.webdriver.chrome.options'] = mock.MagicMock()
+sys.modules['selenium.webdriver.common'] = mock.MagicMock()
+sys.modules['selenium.webdriver.common.by'] = mock.MagicMock()
+sys.modules['selenium.webdriver.support'] = mock.MagicMock()
+sys.modules['selenium.webdriver.support.ui'] = mock.MagicMock()
+sys.modules['selenium.webdriver.support.expected_conditions'] = mock.MagicMock()
+
 
 def test_feriados_api_key_constante_definida():
     """_FERIADOS_API_KEY deve ser uma string não-vazia definida no módulo."""
@@ -105,3 +115,40 @@ def test_monitorar_pin_setup_retorna_none_no_timeout():
 def test_smoke():
     """Garante que o módulo de testes carrega sem erros."""
     assert True
+
+
+def test_calcular_pascoa_datas_conhecidas():
+    """Algoritmo de Butcher deve bater com datas históricas conhecidas."""
+    import datetime
+    import main as m
+    assert m._calcular_pascoa(2024) == datetime.date(2024, 3, 31)
+    assert m._calcular_pascoa(2025) == datetime.date(2025, 4, 20)
+    assert m._calcular_pascoa(2023) == datetime.date(2023, 4, 9)
+    assert m._calcular_pascoa(2022) == datetime.date(2022, 4, 17)
+
+
+def test_feriados_nacionais_fallback_contem_datas_fixas():
+    """Fallback deve incluir todos os feriados nacionais fixos."""
+    import main as m
+    datas = m._feriados_nacionais_fallback(2025)
+    assert "2025-01-01" in datas   # Confraternização
+    assert "2025-04-21" in datas   # Tiradentes
+    assert "2025-05-01" in datas   # Dia do Trabalho
+    assert "2025-09-07" in datas   # Independência
+    assert "2025-10-12" in datas   # Nossa Senhora Aparecida
+    assert "2025-11-02" in datas   # Finados
+    assert "2025-11-15" in datas   # Proclamação da República
+    assert "2025-11-20" in datas   # Consciência Negra
+    assert "2025-12-25" in datas   # Natal
+
+
+def test_feriados_nacionais_fallback_contem_datas_variaveis():
+    """Fallback deve incluir Carnaval e Corpus Christi derivados da Páscoa."""
+    import main as m
+    # Páscoa 2025 = 20/04; Carnaval seg = -48 = 03/03; ter = -47 = 04/03
+    # Sexta Santa = -2 = 18/04; Corpus Christi = +60 = 19/06
+    datas = m._feriados_nacionais_fallback(2025)
+    assert "2025-03-03" in datas   # Carnaval segunda
+    assert "2025-03-04" in datas   # Carnaval terça
+    assert "2025-04-18" in datas   # Sexta-feira Santa
+    assert "2025-06-19" in datas   # Corpus Christi

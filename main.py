@@ -792,6 +792,34 @@ def abrir_janela_alterar_pin():
 
 
 # ──────────────────────────────────────────────────────────────
+# Cálculo local de feriados (fallback sem rede)
+# ──────────────────────────────────────────────────────────────
+
+def _calcular_pascoa(ano):
+    a = ano % 19
+    b, c = divmod(ano, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    mes, dia = divmod(114 + h + l - 7 * m, 31)
+    return datetime.date(ano, mes, dia + 1)
+
+
+def _feriados_nacionais_fallback(ano):
+    pascoa = _calcular_pascoa(ano)
+    datas = set()
+    for mes, dia in [(1,1),(4,21),(5,1),(9,7),(10,12),(11,2),(11,15),(11,20),(12,25)]:
+        datas.add(datetime.date(ano, mes, dia).strftime("%Y-%m-%d"))
+    for delta in [-48, -47, -2, 60]:
+        datas.add((pascoa + datetime.timedelta(days=delta)).strftime("%Y-%m-%d"))
+    return datas
+
+
+# ──────────────────────────────────────────────────────────────
 # Cache de feriados (por ano, para evitar chamadas repetidas)
 # ──────────────────────────────────────────────────────────────
 
