@@ -142,6 +142,48 @@ def test_feriados_nacionais_fallback_contem_datas_fixas():
     assert "2025-12-25" in datas   # Natal
 
 
+def test_feriados_estaduais_cobre_todas_ufs():
+    """FERIADOS_ESTADUAIS deve ter entrada para todas as 27 UFs."""
+    import main as m
+    ufs_esperadas = {
+        "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA",
+        "MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN",
+        "RO","RR","RS","SC","SE","SP","TO"
+    }
+    assert ufs_esperadas == set(m.FERIADOS_ESTADUAIS.keys())
+
+
+def test_ibge_capitais_cobre_todas_ufs():
+    """IBGE_CAPITAIS deve ter entrada para todas as 27 UFs."""
+    import main as m
+    ufs_esperadas = {
+        "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA",
+        "MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN",
+        "RO","RR","RS","SC","SE","SP","TO"
+    }
+    assert ufs_esperadas == set(m.IBGE_CAPITAIS.keys())
+
+
+def test_feriados_municipais_capitais_cobre_todas_ufs():
+    """FERIADOS_MUNICIPAIS_CAPITAIS deve ter entrada para todas as 27 UFs."""
+    import main as m
+    ufs_esperadas = {
+        "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA",
+        "MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN",
+        "RO","RR","RS","SC","SE","SP","TO"
+    }
+    assert ufs_esperadas == set(m.FERIADOS_MUNICIPAIS_CAPITAIS.keys())
+
+
+def test_feriados_bh_inclui_padroeira():
+    """BH deve ter Nossa Senhora da Boa Viagem (15/08) e aniversário (12/12)."""
+    import main as m
+    municipais_mg = m.FERIADOS_MUNICIPAIS_CAPITAIS["MG"]
+    datas = [(mes, dia) for mes, dia, _ in municipais_mg]
+    assert (8, 15) in datas, "Falta Nossa Senhora da Boa Viagem (15/08)"
+    assert (12, 12) in datas, "Falta Aniversário de BH (12/12)"
+
+
 def test_feriados_nacionais_fallback_contem_datas_variaveis():
     """Fallback deve incluir Carnaval e Corpus Christi derivados da Páscoa."""
     import main as m

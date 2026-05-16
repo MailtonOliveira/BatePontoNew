@@ -792,6 +792,101 @@ def abrir_janela_alterar_pin():
 
 
 # ──────────────────────────────────────────────────────────────
+# Feriados estaduais e municipais das capitais (hardcoded, sem API)
+# ──────────────────────────────────────────────────────────────
+
+FERIADOS_ESTADUAIS = {
+    "AC": [(6,  15, "Aniversário do Acre"), (9, 5, "Dia do Acre")],
+    "AL": [(9,  16, "Emancipação Política de Alagoas")],
+    "AM": [(9,   5, "Elevação do Amazonas à categoria de Província")],
+    "AP": [(9,  13, "Criação do Território do Amapá")],
+    "BA": [(7,   2, "Independência da Bahia")],
+    "CE": [(3,  25, "Data Magna do Ceará")],
+    "DF": [(4,  21, "Fundação de Brasília")],
+    "ES": [(10, 28, "Dia do Servidor Público do ES")],
+    "GO": [(7,  26, "Fundação de Goiânia")],
+    "MA": [(7,  28, "Adesão do Maranhão à Independência")],
+    "MG": [(4,  21, "Tiradentes")],
+    "MS": [(10, 11, "Criação do Estado de MS")],
+    "MT": [(4,   8, "Criação da Capitania de MT")],
+    "PA": [(8,  15, "Adesão do Pará à Independência")],
+    "PB": [(8,   5, "Fundação do Estado da Paraíba")],
+    "PE": [(3,   6, "Revolução Pernambucana de 1817")],
+    "PI": [(10, 19, "Dia do Piauí")],
+    "PR": [(12, 19, "Emancipação Política do Paraná")],
+    "RJ": [(4,  23, "Dia de São Jorge")],
+    "RN": [(10,  3, "Mártires de Cunhaú e Uruaçu")],
+    "RO": [(1,   4, "Criação do Estado de RO")],
+    "RR": [(10,  5, "Criação do Estado de RR")],
+    "RS": [(9,  20, "Revolução Farroupilha")],
+    "SC": [(8,  11, "Criação da Capitania de SC")],
+    "SE": [(7,   8, "Emancipação Política de Sergipe")],
+    "SP": [(7,   9, "Revolução Constitucionalista de 1932")],
+    "TO": [(10,  5, "Criação do Estado do Tocantins")],
+}
+
+IBGE_CAPITAIS = {
+    "AC": "1200401",
+    "AL": "2704302",
+    "AM": "1302603",
+    "AP": "1600303",
+    "BA": "2927408",
+    "CE": "2304400",
+    "DF": "5300108",
+    "ES": "3205309",
+    "GO": "5208707",
+    "MA": "2111300",
+    "MG": "3106200",
+    "MS": "5002704",
+    "MT": "5103403",
+    "PA": "1501402",
+    "PB": "2507507",
+    "PE": "2611606",
+    "PI": "2211001",
+    "PR": "4106902",
+    "RJ": "3304557",
+    "RN": "2408102",
+    "RO": "1100205",
+    "RR": "1400100",
+    "RS": "4314902",
+    "SC": "4205407",
+    "SE": "2800308",
+    "SP": "3550308",
+    "TO": "1721000",
+}
+
+FERIADOS_MUNICIPAIS_CAPITAIS = {
+    "AC": [(6,   2, "Aniversário de Rio Branco")],
+    "AL": [(12,  5, "Aniversário de Maceió")],
+    "AM": [(10, 24, "Aniversário de Manaus")],
+    "AP": [(2,   4, "Aniversário de Macapá")],
+    "BA": [(3,  29, "Aniversário de Salvador")],
+    "CE": [(4,  13, "Aniversário de Fortaleza")],
+    "DF": [],
+    "ES": [(9,   8, "Aniversário de Vitória")],
+    "GO": [(10, 24, "Aniversário de Goiânia")],
+    "MA": [(9,   8, "Aniversário de São Luís")],
+    "MG": [(8,  15, "Nossa Senhora da Boa Viagem"), (12, 12, "Aniversário de BH")],
+    "MS": [(8,  26, "Aniversário de Campo Grande")],
+    "MT": [(4,   8, "Aniversário de Cuiabá")],
+    "PA": [(1,  12, "Aniversário de Belém")],
+    "PB": [(8,   5, "Aniversário de João Pessoa")],
+    "PE": [(3,  12, "Aniversário de Recife")],
+    "PI": [(8,  16, "Aniversário de Teresina")],
+    "PR": [(3,  29, "Aniversário de Curitiba")],
+    "RJ": [(1,  20, "Dia de São Sebastião"), (3, 1, "Aniversário do Rio de Janeiro")],
+    "RN": [(12, 25, "Aniversário de Natal")],
+    "RO": [(10,  2, "Aniversário de Porto Velho")],
+    "RR": [(7,   9, "Aniversário de Boa Vista")],
+    "RS": [(7,  26, "Aniversário de Porto Alegre")],
+    "SC": [(3,  23, "Aniversário de Florianópolis")],
+    "SE": [(3,  17, "Aniversário de Aracaju")],
+    "SP": [(1,  25, "Aniversário de São Paulo")],
+    "TO": [(5,  20, "Aniversário de Palmas")],
+}
+
+
+# ──────────────────────────────────────────────────────────────
 # Cálculo local de feriados (fallback sem rede)
 # ──────────────────────────────────────────────────────────────
 
