@@ -665,9 +665,6 @@ def abrir_input_pin_simples():
     root.mainloop()
 
 
-_notificar_instalacao_ok = False
-
-
 def abrir_setup_wizard(pular_para_passo2=False):
     """
     Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir).
@@ -771,7 +768,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
                  font=('Segoe UI', 13, 'bold'), background='#2b2b2b',
                  foreground='#4CAF50').pack(pady=(0, 6))
         tk.Label(content,
-                 text="PIN salvo. Escolha como deseja instalar o app:",
+                 text="PIN salvo. Escolha as opções e clique em Concluir\npara instalar e reiniciar o app.",
                  wraplength=360, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
                  font=('Segoe UI', 10)).pack(pady=(0, 10))
@@ -791,6 +788,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
                        variable=var_desktop, **chk_kw).pack(anchor='w', padx=50, pady=(4, 14))
 
         def _finalizar():
+            exe_instalado = None
             try:
                 exe_instalado = instalar_app()
                 if var_startup.get():
@@ -803,14 +801,19 @@ def abrir_setup_wizard(pular_para_passo2=False):
                 registrar_log(f"Erro durante instalação: {e}")
             try:
                 if driver:
-                    driver.set_window_position(10000, 10000)
+                    driver.quit()
             except Exception:
                 pass
-            global _notificar_instalacao_ok
-            _notificar_instalacao_ok = True
+            try:
+                destino = exe_instalado or sys.executable
+                if getattr(sys, 'frozen', False) and os.path.exists(destino):
+                    subprocess.Popen([destino])
+            except Exception as e:
+                registrar_log(f"Erro ao reiniciar app: {e}")
             root.destroy()
+            os._exit(0)
 
-        ttk.Button(content, text="Instalar e Fechar", command=_finalizar).pack()
+        ttk.Button(content, text="Concluir Instalação ↗", command=_finalizar).pack()
 
     def _mostrar_fallback():
         if _spinner_job[0]:
