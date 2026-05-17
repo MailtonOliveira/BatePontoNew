@@ -1503,14 +1503,4 @@ icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu
 
 systray_icon = icon
 
-if _notificar_instalacao_ok:
-    def _enviar_balloon():
-        time.sleep(1.5)
-        try:
-            if systray_icon:
-                systray_icon.notify("Rodando em segundo plano!", "Bate Ponto instalado ✅")
-        except Exception:
-            pass
-    threading.Thread(target=_enviar_balloon, daemon=True).start()
-
 icon.run()
