@@ -9,6 +9,8 @@ import datetime
 import tempfile
 import re
 import unicodedata
+import shutil
+import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -43,7 +45,27 @@ senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
 timeout_padrao = int(os.getenv("TIMEOUT_PADRAO", "15"))
 
-_primeiro_uso = not senha
+def _get_chrome_profile_dir():
+    """Retorna %LOCALAPPDATA%\\BatePonto\\Chrome, migrando do local antigo se necessário."""
+    local = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
+    novo = os.path.join(local, 'BatePonto', 'Chrome')
+
+    appdata = os.environ.get('APPDATA', '')
+    antigo = os.path.join(appdata, 'BatePonto', 'Chrome')
+    if os.path.exists(antigo) and not os.path.exists(novo):
+        try:
+            shutil.copytree(antigo, novo)
+        except Exception:
+            pass
+
+    return novo
+
+
+def _chrome_profile_exists():
+    d = _get_chrome_profile_dir()
+    return os.path.isdir(d) and bool(os.listdir(d))
+
+_primeiro_uso = not senha or not _chrome_profile_exists()
 
 # ──────────────────────────────────────────────────────────────
 # Horários (thread-safe)
@@ -97,11 +119,38 @@ set_horarios(_carregar_horarios_do_env())
 # Ícone do SysTray
 # ──────────────────────────────────────────────────────────────
 
-def create_image():
-    image = Image.new('RGB', (64, 64), color=(76, 175, 80))
+def create_image(color=(76, 175, 80)):
+    image = Image.new('RGB', (64, 64), color=color)
     draw = ImageDraw.Draw(image)
     draw.rectangle((16, 16, 48, 48), fill=(255, 255, 255))
     return image
+
+
+def _atualizar_icone(estado: str = 'normal'):
+    """normal=verde, descanso=amarelo, erro=vermelho."""
+    cores = {
+        'normal':   (76, 175, 80),
+        'descanso': (255, 193, 7),
+        'erro':     (220, 53, 69),
+    }
+    if systray_icon:
+        systray_icon.icon = create_image(cores.get(estado, cores['normal']))
+
+
+def _notificar_falha(nome_ponto: str):
+    """Muda ícone para vermelho e exibe alerta persistente até o usuário fechar."""
+    _atualizar_icone('erro')
+    msg = (
+        f"Falha ao registrar ponto: {nome_ponto}\n"
+        "Verifique a conexão e o site do Pontotel.\n\n"
+        "Clique em OK para fechar este aviso."
+    )
+    if systray_icon:
+        systray_icon.notify(msg, "Erro — Ponto não registrado")
+    threading.Thread(
+        target=lambda: pyautogui.alert(msg, title="Erro — Ponto não registrado"),
+        daemon=True
+    ).start()
 
 # ──────────────────────────────────────────────────────────────
 # Logs
@@ -120,6 +169,77 @@ def registrar_log(msg):
     with open(logs_path, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] {msg}\n")
     print(msg)
+
+# ──────────────────────────────────────────────────────────────
+# Instalação e atalhos
+# ──────────────────────────────────────────────────────────────
+
+def get_install_dir():
+    local = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
+    return os.path.join(local, 'Programs', 'BatePonto')
+
+
+def instalar_app():
+    """Copia exe e .env para %LOCALAPPDATA%\\Programs\\BatePonto\\. Retorna caminho do exe instalado."""
+    install_dir = get_install_dir()
+    os.makedirs(install_dir, exist_ok=True)
+
+    exe_destino = os.path.join(install_dir, 'BatePonto.exe')
+    if getattr(sys, 'frozen', False):
+        exe_atual = sys.executable
+        if os.path.abspath(exe_atual) != os.path.abspath(exe_destino):
+            shutil.copy2(exe_atual, exe_destino)
+
+    env_destino = os.path.join(install_dir, '.env')
+    if os.path.exists(ENV_PATH) and os.path.abspath(ENV_PATH) != os.path.abspath(env_destino):
+        shutil.copy2(ENV_PATH, env_destino)
+
+    registrar_log(f"App instalado em: {install_dir}")
+    return exe_destino
+
+
+def _criar_atalho(target, shortcut_path, descricao='Bate Ponto Automático'):
+    script = (
+        f"$ws = New-Object -ComObject WScript.Shell; "
+        f"$s = $ws.CreateShortcut('{shortcut_path}'); "
+        f"$s.TargetPath = '{target}'; "
+        f"$s.Description = '{descricao}'; "
+        f"$s.Save()"
+    )
+    subprocess.run(['powershell', '-Command', script], capture_output=True)
+
+
+def criar_atalho_startup(exe_path):
+    startup = os.path.join(
+        os.environ['APPDATA'],
+        'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup'
+    )
+    shortcut = os.path.join(startup, 'BatePonto.lnk')
+    _criar_atalho(exe_path, shortcut)
+    registrar_log(f"Atalho de inicialização criado: {shortcut}")
+
+
+def criar_atalho_desktop(exe_path):
+    result = subprocess.run(
+        ['powershell', '-Command', "[System.Environment]::GetFolderPath('Desktop')"],
+        capture_output=True, text=True
+    )
+    desktop = result.stdout.strip() or os.path.join(os.path.expanduser('~'), 'Desktop')
+    shortcut = os.path.join(desktop, 'BatePonto.lnk')
+    _criar_atalho(exe_path, shortcut)
+    registrar_log(f"Atalho na área de trabalho criado: {shortcut}")
+
+
+def criar_atalho_menu_iniciar(exe_path):
+    programs = os.path.join(
+        os.environ['APPDATA'],
+        'Microsoft', 'Windows', 'Start Menu', 'Programs'
+    )
+    shortcut = os.path.join(programs, 'BatePonto.lnk')
+    _criar_atalho(exe_path, shortcut)
+    registrar_log(f"Atalho no Menu Iniciar criado: {shortcut}")
+
+
 
 # ──────────────────────────────────────────────────────────────
 # Janela tkinter — Configurar Horários
@@ -508,7 +628,11 @@ def abrir_input_pin_simples():
     var_pin = tk.StringVar()
     entry = ttk.Entry(root, textvariable=var_pin, width=14, justify='center',
                       font=('Segoe UI', 14), show='*')
-    entry.pack(pady=(0, 16))
+    entry.pack(pady=(0, 8))
+    ttk.Label(root,
+              text="💡 Dica: no primeiro cadastro na plataforma, o PIN geralmente é o seu CPF.",
+              wraplength=300, justify='center',
+              font=('Segoe UI', 8)).pack(pady=(0, 12))
     entry.focus()
 
     def salvar():
@@ -631,18 +755,49 @@ def abrir_setup_wizard(pular_para_passo2=False):
         if _spinner_job[0]:
             root.after_cancel(_spinner_job[0])
         _limpar()
-        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 6))
         tk.Label(content, text="✅ Configuração concluída!",
                  font=('Segoe UI', 13, 'bold'), background='#2b2b2b',
-                 foreground='#4CAF50').pack(pady=(0, 10))
+                 foreground='#4CAF50').pack(pady=(0, 6))
         tk.Label(content,
-                 text="Seu PIN foi salvo com sucesso.\n"
-                      "O app está rodando em segundo plano —\n"
-                      "veja o ícone na bandeja do sistema.",
+                 text="PIN salvo. Escolha como deseja instalar o app:",
                  wraplength=360, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=('Segoe UI', 11)).pack(pady=(0, 20))
-        ttk.Button(content, text="Fechar", command=root.destroy).pack()
+                 font=('Segoe UI', 10)).pack(pady=(0, 10))
+
+        var_startup = tk.BooleanVar(value=True)
+        var_menu = tk.BooleanVar(value=True)
+        var_desktop = tk.BooleanVar(value=True)
+
+        chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
+                      selectcolor='#444444', activebackground='#2b2b2b',
+                      activeforeground='#ffffff', font=('Segoe UI', 10))
+        tk.Checkbutton(content, text="Iniciar com o Windows",
+                       variable=var_startup, **chk_kw).pack(anchor='w', padx=50)
+        tk.Checkbutton(content, text="Salvar no Menu Iniciar",
+                       variable=var_menu, **chk_kw).pack(anchor='w', padx=50, pady=(4, 0))
+        tk.Checkbutton(content, text="Atalho na Área de Trabalho",
+                       variable=var_desktop, **chk_kw).pack(anchor='w', padx=50, pady=(4, 14))
+
+        def _finalizar():
+            try:
+                exe_instalado = instalar_app()
+                if var_startup.get():
+                    criar_atalho_startup(exe_instalado)
+                if var_menu.get():
+                    criar_atalho_menu_iniciar(exe_instalado)
+                if var_desktop.get():
+                    criar_atalho_desktop(exe_instalado)
+            except Exception as e:
+                registrar_log(f"Erro durante instalação: {e}")
+            try:
+                if driver:
+                    driver.set_window_position(10000, 10000)
+            except Exception:
+                pass
+            root.destroy()
+
+        ttk.Button(content, text="Instalar e Fechar", command=_finalizar).pack()
 
     def _mostrar_fallback():
         if _spinner_job[0]:
@@ -658,7 +813,12 @@ def abrir_setup_wizard(pular_para_passo2=False):
         var_pin = tk.StringVar()
         entry = ttk.Entry(content, textvariable=var_pin, width=12, justify='center',
                           font=('Segoe UI', 14), show='*')
-        entry.pack(pady=(0, 16))
+        entry.pack(pady=(0, 6))
+        tk.Label(content,
+                 text="💡 Dica: no primeiro cadastro na plataforma, o PIN geralmente é o seu CPF.",
+                 wraplength=340, justify='center',
+                 background='#2b2b2b', foreground='#aaaaaa',
+                 font=('Segoe UI', 8)).pack(pady=(0, 14))
         entry.focus()
 
         def _salvar_manual():
@@ -1009,8 +1169,7 @@ def _init_driver():
     if driver is not None:
         return
     options = Options()
-    appdata_dir = os.environ.get('APPDATA')
-    user_data_dir = os.path.join(appdata_dir, "BatePonto", "Chrome")
+    user_data_dir = _get_chrome_profile_dir()
     os.makedirs(user_data_dir, exist_ok=True)
     options.add_argument(f"--user-data-dir={user_data_dir}")
     options.add_argument("--profile-directory=Default")
@@ -1108,14 +1267,10 @@ def clicar_opcao(horario_atual):
                 return True
             time.sleep(1)
 
-        msg = f"Timeout ({timeout_padrao}s): botão '{nome}' não encontrado. Página será reiniciada."
-        registrar_log(msg)
-        pyautogui.alert(msg, title="Bate Ponto")
+        registrar_log(f"Timeout ({timeout_padrao}s): botão '{nome}' não encontrado.")
         return False
     except Exception as e:
-        msg = f"Erro ao tentar clicar na opção '{nome}': {str(e)}. Página será reiniciada."
-        registrar_log(msg)
-        pyautogui.alert(msg, title="Bate Ponto")
+        registrar_log(f"Erro ao tentar clicar na opção '{nome}': {str(e)}.")
         return False
 
 # ──────────────────────────────────────────────────────────────
@@ -1211,10 +1366,12 @@ def main_loop():
             # Pula fins de semana e feriados (dorme até o dia seguinte)
             if is_weekend() or is_holiday():
                 registrar_log("Hoje é final de semana ou feriado. Ponto não será batido.")
+                _atualizar_icone('descanso')
                 agora = datetime.datetime.now()
                 amanha = (agora + datetime.timedelta(days=1)).replace(
                     hour=0, minute=5, second=0, microsecond=0)
                 time.sleep((amanha - agora).total_seconds())
+                _atualizar_icone('normal')
                 continue
 
             # Smart sleep: dorme até _ANTECEDENCIA segundos antes do próximo ponto
@@ -1239,23 +1396,34 @@ def main_loop():
 
             # Executa o ponto
             registrar_log(f"Horário válido detectado: {horario_atual}")
+            horarios = get_horarios()
+            nome_ponto = horarios.get(horario_atual, {}).get('nome', horario_atual)
             try:
                 if preencher_senha():
                     time.sleep(1)
                     if clicar_confirmar_pin():
                         time.sleep(2)
                         if clicar_opcao(horario_atual):
-                            horarios = get_horarios()
-                            nome_ponto = horarios.get(horario_atual, {}).get('nome', horario_atual)
                             agora_str = datetime.datetime.now().strftime("%H:%M")
                             msg_ok = f"{nome_ponto} registrado às {agora_str}"
                             registrar_log(f"Ponto batido: {msg_ok}")
+                            _atualizar_icone('normal')
                             if systray_icon:
                                 systray_icon.notify(msg_ok, "Ponto Batido!")
                             time.sleep(5)
                             driver.refresh()
+                        else:
+                            registrar_log(f"Falha ao clicar no botão do ponto '{nome_ponto}'.")
+                            _notificar_falha(nome_ponto)
+                    else:
+                        registrar_log(f"Falha ao confirmar PIN para o ponto '{nome_ponto}'.")
+                        _notificar_falha(nome_ponto)
+                else:
+                    registrar_log(f"Falha ao preencher senha para o ponto '{nome_ponto}'.")
+                    _notificar_falha(nome_ponto)
             except Exception as e:
                 registrar_log(f"Erro inesperado: {str(e)}")
+                _notificar_falha(nome_ponto)
 
             # Sai da janela do minuto atual antes de recalcular o próximo
             time.sleep(65)
