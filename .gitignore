@@ -133,3 +133,15 @@ ChromeDriver/
 chromedriver.exe
 logs_bateponto.txt
 *.tmp
+.aider*
+*.zip
+_scrub_key.py
+skills-lock.json
+
+# Claude Code / AI tooling
+.claude/
+.agents/
+
+# Build output
+dist/
+*.exe
