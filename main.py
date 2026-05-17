@@ -721,6 +721,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
         ttk.Button(content, text="Iniciar →", command=_iniciar).pack()
 
     def _mostrar_passo2():
+        root.attributes('-topmost', False)
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
         ttk.Label(content, text="Aguardando configuração...",
@@ -732,6 +733,13 @@ def abrir_setup_wizard(pular_para_passo2=False):
                     "●  Não feche o Chrome"]:
             tk.Label(content, text=txt, background='#2b2b2b', foreground='#aaaaaa',
                      font=('Segoe UI', 9)).pack(anchor='w', pady=1)
+
+        banner = tk.Frame(content, bg='#3a3a2a', relief='flat', bd=0)
+        banner.pack(fill='x', pady=(12, 0))
+        tk.Label(banner,
+                 text="💡  Minimize esta janela enquanto preenche o site",
+                 background='#3a3a2a', foreground='#f0d060',
+                 font=('Segoe UI', 9)).pack(pady=6, padx=10)
 
         spinner_var = tk.StringVar(value="◐  Detectando PIN...")
         tk.Label(content, textvariable=spinner_var, background='#2b2b2b',
@@ -872,6 +880,9 @@ def abrir_setup_wizard(pular_para_passo2=False):
         os._exit(0)
 
     def _on_pin_resultado(pin):
+        root.attributes('-topmost', True)
+        root.lift()
+        root.focus_force()
         if pin:
             _salvar_pin(pin)
             _mostrar_conclusao()
