@@ -665,6 +665,9 @@ def abrir_input_pin_simples():
     root.mainloop()
 
 
+_notificar_instalacao_ok = False
+
+
 def abrir_setup_wizard(pular_para_passo2=False):
     """
     Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir).
@@ -803,6 +806,8 @@ def abrir_setup_wizard(pular_para_passo2=False):
                     driver.set_window_position(10000, 10000)
             except Exception:
                 pass
+            global _notificar_instalacao_ok
+            _notificar_instalacao_ok = True
             root.destroy()
 
         ttk.Button(content, text="Instalar e Fechar", command=_finalizar).pack()
@@ -1496,4 +1501,15 @@ icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu
 ))
 
 systray_icon = icon
-icon.run()
+
+
+def _on_systray_ready(icon):
+    global _notificar_instalacao_ok
+    icon.visible = True
+    if _notificar_instalacao_ok:
+        time.sleep(0.5)
+        icon.notify("Rodando em segundo plano!", "Bate Ponto instalado ✅")
+        _notificar_instalacao_ok = False
+
+
+icon.run(setup=_on_systray_ready)
