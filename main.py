@@ -1210,7 +1210,6 @@ def _init_driver():
     options.add_argument(f"--user-data-dir={user_data_dir}")
     options.add_argument("--profile-directory=Default")
     options.add_argument("--window-size=1280,720")
-    options.add_argument("--start-maximized")
 
     print("[BatePonto] Abrindo Chrome...")
     try:
@@ -1220,6 +1219,7 @@ def _init_driver():
         print(f"[BatePonto] ERRO ao abrir Chrome: {e}")
         sys.exit(1)
 
+    driver.set_window_position(10000, 10000)  # esconde antes de qualquer navegação
     driver.get(url)
     time.sleep(3)
     gerenciar_janela()
