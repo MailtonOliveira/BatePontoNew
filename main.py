@@ -885,6 +885,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
         os._exit(0)
 
     def _on_pin_resultado(pin):
+        root.deiconify()
         root.attributes('-topmost', True)
         root.lift()
         root.focus_force()
@@ -1502,14 +1503,14 @@ icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu
 
 systray_icon = icon
 
+if _notificar_instalacao_ok:
+    def _enviar_balloon():
+        time.sleep(1.5)
+        try:
+            if systray_icon:
+                systray_icon.notify("Rodando em segundo plano!", "Bate Ponto instalado ✅")
+        except Exception:
+            pass
+    threading.Thread(target=_enviar_balloon, daemon=True).start()
 
-def _on_systray_ready(icon):
-    global _notificar_instalacao_ok
-    icon.visible = True
-    if _notificar_instalacao_ok:
-        time.sleep(0.5)
-        icon.notify("Rodando em segundo plano!", "Bate Ponto instalado ✅")
-        _notificar_instalacao_ok = False
-
-
-icon.run(setup=_on_systray_ready)
+icon.run()
