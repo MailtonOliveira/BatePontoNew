@@ -723,10 +723,33 @@ def abrir_setup_wizard(pular_para_passo2=False):
     def _mostrar_passo2():
         root.attributes('-topmost', False)
         _limpar()
-        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
-        ttk.Label(content, text="Aguardando configuração...",
-                  font=('Segoe UI', 11, 'bold'), background='#2b2b2b',
-                  foreground='#ffffff').pack(pady=(0, 10))
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 8))
+
+        def _abrir_chrome_pontotel():
+            try:
+                if driver:
+                    driver.set_window_position(50, 50)
+                    janelas = gw.getWindowsWithTitle('Chrome')
+                    for j in janelas:
+                        if 'Pontotel' in j.title or 'Chrome' in j.title:
+                            j.activate()
+                            break
+            except Exception:
+                pass
+            btn_abrir.configure(state='disabled',
+                                text='✓  Chrome aberto — minimize esta janela e preencha o site',
+                                background='#444444', foreground='#aaaaaa',
+                                font=('Segoe UI', 9))
+
+        btn_abrir = tk.Button(content,
+                              text="▶  Abrir site da Pontotel",
+                              command=_abrir_chrome_pontotel,
+                              background='#4CAF50', foreground='#ffffff',
+                              font=('Segoe UI', 11, 'bold'),
+                              relief='flat', padx=16, pady=8,
+                              cursor='hand2', activebackground='#388E3C',
+                              activeforeground='#ffffff')
+        btn_abrir.pack(pady=(0, 14))
 
         for txt in ["●  Faça login no site da Pontotel",
                     "●  Digite seu PIN quando pedido",
@@ -734,16 +757,9 @@ def abrir_setup_wizard(pular_para_passo2=False):
             tk.Label(content, text=txt, background='#2b2b2b', foreground='#aaaaaa',
                      font=('Segoe UI', 9)).pack(anchor='w', pady=1)
 
-        banner = tk.Frame(content, bg='#3a3a2a', relief='flat', bd=0)
-        banner.pack(fill='x', pady=(12, 0))
-        tk.Label(banner,
-                 text="💡  Minimize esta janela enquanto preenche o site",
-                 background='#3a3a2a', foreground='#f0d060',
-                 font=('Segoe UI', 9)).pack(pady=6, padx=10)
-
         spinner_var = tk.StringVar(value="◐  Detectando PIN...")
         tk.Label(content, textvariable=spinner_var, background='#2b2b2b',
-                 foreground='#aaaaaa', font=('Segoe UI', 9)).pack(pady=(16, 0))
+                 foreground='#aaaaaa', font=('Segoe UI', 9)).pack(pady=(14, 0))
 
         def _tick_spinner():
             _spinner_idx[0] = (_spinner_idx[0] + 1) % len(_spinner_chars)
@@ -751,7 +767,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
             _spinner_job[0] = root.after(300, _tick_spinner)
 
         _tick_spinner()
-        ttk.Button(content, text="Cancelar", command=_cancelar).pack(pady=(20, 0))
+        ttk.Button(content, text="Cancelar", command=_cancelar).pack(pady=(14, 0))
 
         def _thread_monitoramento():
             pin = _monitorar_pin_setup(timeout_segundos=300)
@@ -1331,6 +1347,10 @@ def gerenciar_janela():
 if _primeiro_uso:
     _init_driver()  # abre Chrome para detectar estado do perfil
     if janela_visivel:  # Chrome visível = precisa de login = wizard completo
+        try:
+            driver.set_window_position(10000, 10000)  # esconde até usuário clicar no wizard
+        except Exception:
+            pass
         abrir_setup_wizard(pular_para_passo2=True)
     else:  # Chrome oculto = perfil já configurado = só precisa do PIN
         abrir_input_pin_simples()
