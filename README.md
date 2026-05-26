@@ -2,11 +2,13 @@
 
 Automação em Python usando Selenium para bater o ponto automaticamente no sistema Pontotel, de forma discreta, configurável e segura.
 
+> **Compatível com Windows e Linux** 🐧
+
 ## 🚀 Funcionalidades
 
 - **Registro Automático:** Bate os 4 pontos (Entrada, Pausa, Retorno, Saída) nos horários configurados.
 - **Configuração Segura (`.env`):** PIN e horários configurados via variável de ambiente, garantindo que dados sensíveis não fiquem expostos no código.
-- **Interface na Bandeja do Sistema (SysTray):** O script roda silenciosamente em segundo plano, acessível pelo ícone na área de notificação do Windows.
+- **Interface na Bandeja do Sistema (SysTray):** O script roda silenciosamente em segundo plano, acessível pelo ícone na área de notificação (Windows e Linux).
 - **Edição em Tempo Real:** Permite configurar os horários de batida através de uma janela nativa (Tkinter), propagando as alterações instantaneamente sem reiniciar.
 - **Janela Discreta:** A janela do Chrome é posicionada fora da visão após o setup (`position 10000,10000`), operando de forma não-intrusiva.
 - **Proteção contra Duplicidade:** Verifica o "último ponto registrado" no HTML para garantir que o mesmo ponto não seja batido duas vezes no mesmo dia.
@@ -30,9 +32,18 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
 
 ## 💻 Pré-requisitos
 
-- **Sistema Operacional:** Windows (testado para rodar na SysTray)
+### Windows
 - **Navegador:** Google Chrome instalado
 - **Python:** 3.10+ (apenas se for rodar o código-fonte)
+
+### Linux 🐧
+- **Navegador:** Google Chrome ou Chromium instalado
+- **Python:** 3.10+
+- **Tkinter:** `sudo apt install python3-tk` (Ubuntu/Debian)
+- **Suporte ao SysTray:** `sudo apt install gir1.2-appindicator3-0.1` (GNOME) ou equivalente
+- **Foco automático de janela** *(opcional)*: `sudo apt install xdotool`
+
+> 💡 **Nota sobre SysTray no Linux:** Em desktops GNOME puro é necessário a extensão [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/). No KDE, XFCE, MATE e outros funciona nativamente.
 
 ---
 
@@ -40,8 +51,18 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
 
 ### Opção 1: Executável Pronto (Recomendado)
 
-1. Baixe o executável `BatePonto.exe` disponível na aba Releases.
-2. Execute o `BatePonto.exe` — na primeira execução um wizard vai guiar a configuração.
+| Plataforma | Arquivo |
+|---|---|
+| Windows | `BatePonto.exe` |
+| Linux | `BatePonto` (binário ELF) |
+
+1. Baixe o executável correspondente à sua plataforma na aba **Releases**.
+2. **Linux:** torne o binário executável antes de rodar:
+   ```bash
+   chmod +x BatePonto
+   ./BatePonto
+   ```
+3. Na primeira execução um wizard vai guiar a configuração.
 
 ### Opção 2: Rodar do Código-Fonte
 
@@ -95,22 +116,52 @@ A localização correta garante que feriados estaduais e municipais sejam respei
 
 ---
 
-## 📦 Como Buildar o Executável (.exe)
+## 📦 Como Buildar o Executável
 
 1. Instale o PyInstaller:
    ```bash
    pip install pyinstaller
    ```
+
 2. Gere o executável:
+
+   **Windows:**
    ```bash
    py -m PyInstaller main.spec --clean
    ```
-3. O `BatePonto.exe` será criado em `dist/`.
+   O arquivo `dist\BatePonto.exe` será criado.
+
+   **Linux:**
+   ```bash
+   python -m PyInstaller main.spec --clean
+   ```
+   O binário `dist/BatePonto` será criado. Torne-o executável:
+   ```bash
+   chmod +x dist/BatePonto
+   ```
+
+> 💡 O `main.spec` detecta automaticamente a plataforma e inclui apenas as dependências necessárias.
 
 ---
 
 ## 📝 Logs
 
-Todos os eventos são registrados em `%TEMP%\BatePonto\logs_bateponto.txt`.
+| Plataforma | Caminho do log |
+|---|---|
+| Windows | `%TEMP%\BatePonto\logs_bateponto.txt` |
+| Linux | `/tmp/BatePonto/logs_bateponto.txt` |
 
 - Para ver o último evento rapidamente: botão direito no ícone → **"Último Log"**.
+
+---
+
+## 📂 Diretórios usados pelo app
+
+| Finalidade | Windows | Linux |
+|---|---|---|
+| Perfil Chrome | `%LOCALAPPDATA%\BatePonto\Chrome` | `~/.local/share/BatePonto/Chrome` |
+| Instalação | `%LOCALAPPDATA%\Programs\BatePonto` | `~/.local/share/BatePonto` |
+| Config (`.env`) | Junto ao executável | `~/.config/BatePonto/` |
+| Logs | `%TEMP%\BatePonto\` | `/tmp/BatePonto/` |
+| Autostart | `%APPDATA%\...\Startup\BatePonto.lnk` | `~/.config/autostart/bateponto.desktop` |
+| Menu de apps | `%APPDATA%\...\Programs\BatePonto.lnk` | `~/.local/share/applications/bateponto.desktop` |
