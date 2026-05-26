@@ -20,9 +20,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import pygetwindow as gw
-import pyautogui
-import requests  # Adicionado para fazer requisições HTTP
+import requests
+import platform_utils
 
 # ──────────────────────────────────────────────────────────────
 # Carregar .env
@@ -45,20 +44,13 @@ senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
 timeout_padrao = int(os.getenv("TIMEOUT_PADRAO", "15"))
 
+# Migra perfil Chrome legado (Windows-only, no-op no Linux)
+platform_utils.migrar_perfil_chrome_legado()
+
+
 def _get_chrome_profile_dir():
-    """Retorna %LOCALAPPDATA%\\BatePonto\\Chrome, migrando do local antigo se necessário."""
-    local = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
-    novo = os.path.join(local, 'BatePonto', 'Chrome')
-
-    appdata = os.environ.get('APPDATA', '')
-    antigo = os.path.join(appdata, 'BatePonto', 'Chrome')
-    if os.path.exists(antigo) and not os.path.exists(novo):
-        try:
-            shutil.copytree(antigo, novo)
-        except Exception:
-            pass
-
-    return novo
+    """Delega para platform_utils — suporta Windows e Linux."""
+    return platform_utils.get_chrome_profile_dir()
 
 
 def _chrome_profile_exists():
@@ -147,10 +139,7 @@ def _notificar_falha(nome_ponto: str):
     )
     if systray_icon:
         systray_icon.notify(msg, "Erro — Ponto não registrado")
-    threading.Thread(
-        target=lambda: pyautogui.alert(msg, title="Erro — Ponto não registrado"),
-        daemon=True
-    ).start()
+    platform_utils.mostrar_alerta(msg, titulo="Erro — Ponto não registrado")
 
 # ──────────────────────────────────────────────────────────────
 # Logs
@@ -175,69 +164,28 @@ def registrar_log(msg):
 # ──────────────────────────────────────────────────────────────
 
 def get_install_dir():
-    local = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
-    return os.path.join(local, 'Programs', 'BatePonto')
+    """Delega para platform_utils — suporta Windows e Linux."""
+    return platform_utils.get_install_dir()
 
 
 def instalar_app():
-    """Copia exe e .env para %LOCALAPPDATA%\\Programs\\BatePonto\\. Retorna caminho do exe instalado."""
-    install_dir = get_install_dir()
-    os.makedirs(install_dir, exist_ok=True)
-
-    exe_destino = os.path.join(install_dir, 'BatePonto.exe')
-    if getattr(sys, 'frozen', False):
-        exe_atual = sys.executable
-        if os.path.abspath(exe_atual) != os.path.abspath(exe_destino):
-            shutil.copy2(exe_atual, exe_destino)
-
-    env_destino = os.path.join(install_dir, '.env')
-    if os.path.exists(ENV_PATH) and os.path.abspath(ENV_PATH) != os.path.abspath(env_destino):
-        shutil.copy2(ENV_PATH, env_destino)
-
-    registrar_log(f"App instalado em: {install_dir}")
-    return exe_destino
-
-
-def _criar_atalho(target, shortcut_path, descricao='Bate Ponto Automático'):
-    script = (
-        f"$ws = New-Object -ComObject WScript.Shell; "
-        f"$s = $ws.CreateShortcut('{shortcut_path}'); "
-        f"$s.TargetPath = '{target}'; "
-        f"$s.Description = '{descricao}'; "
-        f"$s.Save()"
-    )
-    subprocess.run(['powershell', '-Command', script], capture_output=True)
+    """Copia exe e .env para o diretório de instalação (cross-platform)."""
+    return platform_utils.instalar_app(ENV_PATH, registrar_log)
 
 
 def criar_atalho_startup(exe_path):
-    startup = os.path.join(
-        os.environ['APPDATA'],
-        'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup'
-    )
-    shortcut = os.path.join(startup, 'BatePonto.lnk')
-    _criar_atalho(exe_path, shortcut)
-    registrar_log(f"Atalho de inicialização criado: {shortcut}")
+    platform_utils.criar_atalho_startup(exe_path)
+    registrar_log("Atalho de inicialização criado.")
 
 
 def criar_atalho_desktop(exe_path):
-    result = subprocess.run(
-        ['powershell', '-Command', "[System.Environment]::GetFolderPath('Desktop')"],
-        capture_output=True, text=True
-    )
-    desktop = result.stdout.strip() or os.path.join(os.path.expanduser('~'), 'Desktop')
-    shortcut = os.path.join(desktop, 'BatePonto.lnk')
-    _criar_atalho(exe_path, shortcut)
-    registrar_log(f"Atalho na área de trabalho criado: {shortcut}")
+    platform_utils.criar_atalho_desktop(exe_path)
+    registrar_log("Atalho na área de trabalho criado.")
 
 
 def criar_atalho_menu_iniciar(exe_path):
-    programs = os.path.join(
-        os.environ['APPDATA'],
-        'Microsoft', 'Windows', 'Start Menu', 'Programs'
-    )
-    shortcut = os.path.join(programs, 'BatePonto.lnk')
-    _criar_atalho(exe_path, shortcut)
-    registrar_log(f"Atalho no Menu Iniciar criado: {shortcut}")
+    platform_utils.criar_atalho_menu_iniciar(exe_path)
+    registrar_log("Atalho no menu de aplicativos criado.")
 
 
 
@@ -729,11 +677,11 @@ def abrir_setup_wizard(pular_para_passo2=False):
             try:
                 if driver:
                     driver.set_window_position(50, 50)
-                    janelas = gw.getWindowsWithTitle('Chrome')
-                    for j in janelas:
-                        if 'Pontotel' in j.title or 'Chrome' in j.title:
-                            j.activate()
-                            break
+                    # Tenta focar a janela de forma cross-platform
+                    threading.Thread(
+                        target=lambda: platform_utils.focar_janela_chrome(registrar_log),
+                        daemon=True
+                    ).start()
             except Exception:
                 pass
             btn_abrir.configure(state='disabled',
@@ -796,11 +744,11 @@ def abrir_setup_wizard(pular_para_passo2=False):
         chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
                       selectcolor='#444444', activebackground='#2b2b2b',
                       activeforeground='#ffffff', font=('Segoe UI', 10))
-        tk.Checkbutton(content, text="Iniciar com o Windows",
+        tk.Checkbutton(content, text=platform_utils.label_startup(),
                        variable=var_startup, **chk_kw).pack(anchor='w', padx=50)
-        tk.Checkbutton(content, text="Salvar no Menu Iniciar",
+        tk.Checkbutton(content, text=platform_utils.label_menu(),
                        variable=var_menu, **chk_kw).pack(anchor='w', padx=50, pady=(4, 0))
-        tk.Checkbutton(content, text="Atalho na Área de Trabalho",
+        tk.Checkbutton(content, text=platform_utils.label_desktop(),
                        variable=var_desktop, **chk_kw).pack(anchor='w', padx=50, pady=(4, 14))
 
         def _finalizar():
@@ -1271,6 +1219,7 @@ def clicar_confirmar_pin():
         return False
 
 
+
 def clicar_opcao(horario_atual):
     horarios = get_horarios()
     seletor = horarios[horario_atual]["seletor"]
@@ -1298,9 +1247,54 @@ def clicar_opcao(horario_atual):
                 else:
                     driver.execute_script("arguments[0].click();", host)
 
-                msg = f"Opção '{nome}' selecionada. Página será reiniciada."
-                registrar_log(msg)
-                return True
+                # Aguarda até 30s: trata tela de câmera, modal de avaliação e verifica confirmação
+                for i in range(30):
+                    time.sleep(1)
+                    try:
+                        # Detecta tela de câmera e clica em "Continuar sem foto" → ponto confirmado
+                        botoes_continuar = driver.find_elements(
+                            By.XPATH,
+                            "//*[contains(text(),'Continuar sem foto') or contains(text(),'continuar sem foto')]"
+                        )
+                        if botoes_continuar:
+                            registrar_log("Tela de câmera detectada. Clicando em 'Continuar sem foto'.")
+                            driver.execute_script("arguments[0].click();", botoes_continuar[0])
+                            registrar_log(f"Ponto '{nome}' registrado (câmera confirmada).")
+                            return True
+
+                        # Modal de avaliação = ponto registrado com sucesso → fecha e retorna True
+                        modal_estrelas = driver.find_elements(
+                            By.XPATH,
+                            "//*[contains(text(),'estrela') or contains(text(),'avaliar') or contains(text(),'Avaliar') or contains(text(),'avaliação')]"
+                        )
+                        if modal_estrelas:
+                            registrar_log(f"Ponto '{nome}' registrado. Fechando modal de avaliação.")
+                            # Tenta fechar via botão de fechar (×) ou tecla Escape
+                            try:
+                                fechar = driver.find_elements(By.XPATH, "//*[@aria-label='Fechar' or @aria-label='Close' or @class[contains(.,'close')] or @class[contains(.,'fechar')]]")
+                                if fechar:
+                                    driver.execute_script("arguments[0].click();", fechar[0])
+                                else:
+                                    from selenium.webdriver.common.keys import Keys
+                                    driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+                            except Exception:
+                                pass
+                            return True
+
+                        # Verifica se o ponto foi confirmado via atributo
+                        botoes_verify = driver.find_elements(By.CSS_SELECTOR, seletor)
+                        if botoes_verify:
+                            novo_ultimo = botoes_verify[0].get_attribute("ultimo-ponto")
+                            if novo_ultimo and novo_ultimo.startswith(hoje_str):
+                                registrar_log(f"Opção '{nome}' confirmada pelo site (ultimo-ponto={novo_ultimo}).")
+                                return True
+                    except Exception:
+                        pass
+
+                registrar_log(
+                    f"ATENÇÃO: Clique executado mas ponto '{nome}' não foi confirmado em 30s."
+                )
+                return False
             time.sleep(1)
 
         registrar_log(f"Timeout ({timeout_padrao}s): botão '{nome}' não encontrado.")
@@ -1359,15 +1353,7 @@ else:
 
 
 def focar_janela_do_chrome():
-    try:
-        time.sleep(3)
-        janelas = gw.getWindowsWithTitle('Chrome')
-        for janela in janelas:
-            if 'Pontotel' in janela.title or 'Chrome' in janela.title:
-                janela.activate()
-                break
-    except Exception as e:
-        registrar_log(f"Erro ao focar janela: {e}")
+    platform_utils.focar_janela_chrome(registrar_log)
 
 
 def segundos_ate_proximo_ponto():
@@ -1414,14 +1400,19 @@ def main_loop():
                 _atualizar_icone('normal')
                 continue
 
-            # Smart sleep: dorme até _ANTECEDENCIA segundos antes do próximo ponto
-            faltam = segundos_ate_proximo_ponto()
-            if faltam > _ANTECEDENCIA:
+            # Smart sleep: dorme em fatias de 30s para detectar mudanças de horário
+            ultimo_proximo_logado = None
+            while True:
+                faltam = segundos_ate_proximo_ponto()
+                if faltam <= _ANTECEDENCIA:
+                    break
                 proximo_str = (
                     datetime.datetime.now() + datetime.timedelta(seconds=faltam)
                 ).strftime("%H:%M")
-                registrar_log(f"Próximo ponto às {proximo_str}. Aguardando...")
-                time.sleep(faltam - _ANTECEDENCIA)
+                if proximo_str != ultimo_proximo_logado:
+                    registrar_log(f"Próximo ponto às {proximo_str}. Aguardando...")
+                    ultimo_proximo_logado = proximo_str
+                time.sleep(min(30, faltam - _ANTECEDENCIA))
 
             # Polling fino: espera o segundo exato (janela de até 20s)
             horario_atual = None
@@ -1450,7 +1441,6 @@ def main_loop():
                             _atualizar_icone('normal')
                             if systray_icon:
                                 systray_icon.notify(msg_ok, "Ponto Batido!")
-                            time.sleep(5)
                             driver.refresh()
                         else:
                             registrar_log(f"Falha ao clicar no botão do ponto '{nome_ponto}'.")
@@ -1490,16 +1480,13 @@ def mostrar_ultimo_log(icon, item):
             if os.path.exists(logs_path):
                 with open(logs_path, "r", encoding="utf-8") as f:
                     linhas = f.readlines()
-                    if linhas:
-                        ultimo_log = linhas[-1].strip()
-                    else:
-                        ultimo_log = "Log vazio."
+                    ultimo_log = linhas[-1].strip() if linhas else "Log vazio."
             else:
                 ultimo_log = "Arquivo de log não encontrado."
         except Exception as e:
             ultimo_log = f"Erro ao ler o log: {str(e)}"
-        pyautogui.alert(ultimo_log, title="Último Log")
-    threading.Thread(target=exibir_alerta).start()
+        platform_utils.mostrar_alerta(ultimo_log, titulo="Último Log")
+    threading.Thread(target=exibir_alerta, daemon=True).start()
 
 
 def configurar_horarios_systray(icon, item):
