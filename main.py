@@ -1247,8 +1247,25 @@ def clicar_opcao(horario_atual):
                 else:
                     driver.execute_script("arguments[0].click();", host)
 
-                msg = f"Opção '{nome}' selecionada. Página será reiniciada."
-                registrar_log(msg)
+                registrar_log(f"Opção '{nome}' selecionada. Aguardando confirmação...")
+
+                # Aguarda até 30s por tela de câmera
+                for _ in range(30):
+                    time.sleep(1)
+                    try:
+                        botoes_continuar = driver.find_elements(
+                            By.XPATH,
+                            "//*[contains(text(),'Continuar sem foto') or contains(text(),'continuar sem foto')]"
+                        )
+                        if botoes_continuar:
+                            registrar_log("Tela de câmera detectada. Clicando em 'Continuar sem foto'.")
+                            driver.execute_script("arguments[0].click();", botoes_continuar[0])
+                            registrar_log(f"Ponto '{nome}' confirmado via câmera.")
+                            return True
+                    except Exception:
+                        pass
+
+                registrar_log(f"Ponto '{nome}' registrado (sem tela de câmera).")
                 return True
             time.sleep(1)
 
