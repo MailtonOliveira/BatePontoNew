@@ -224,26 +224,17 @@ def abrir_janela_configuracao():
     def _criar_janela():
         atuais = _extrair_horarios_por_nome()
 
-        root = tk.Tk()
+        root = tk.Toplevel(_tk_root)
         root.title("Configurar Horários")
         root.resizable(False, False)
         root.attributes('-topmost', True)
 
-        # Centralizar janela
         largura, altura = 340, 280
         x = (root.winfo_screenwidth() // 2) - (largura // 2)
         y = (root.winfo_screenheight() // 2) - (altura // 2)
         root.geometry(f"{largura}x{altura}+{x}+{y}")
 
-        # Estilo
         root.configure(bg='#2b2b2b')
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
-        style.configure('TEntry', font=('Segoe UI', 11))
-        style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
-        style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
-                        font=('Segoe UI', 13, 'bold'))
 
         # Header
         header = ttk.Label(root, text="⏰ Horários dos Pontos", style='Header.TLabel')
@@ -306,9 +297,7 @@ def abrir_janela_configuracao():
         btn_cancelar = ttk.Button(btn_frame, text="Cancelar", command=root.destroy)
         btn_cancelar.pack(side='left', padx=5)
 
-        root.mainloop()
-
-    threading.Thread(target=_criar_janela, daemon=True).start()
+    _tk_root.after(0, _criar_janela)
 
 # ──────────────────────────────────────────────────────────────
 # Funções de horário
@@ -418,7 +407,7 @@ def abrir_janela_localizacao():
         with _localizacao_lock:
             auto = _localizacao_auto_info
 
-        root = tk.Tk()
+        root = tk.Toplevel(_tk_root)
         root.title("Configurar Localização")
         root.resizable(False, False)
         root.attributes('-topmost', True)
@@ -429,15 +418,6 @@ def abrir_janela_localizacao():
         root.geometry(f"{largura}x{altura}+{x}+{y}")
 
         root.configure(bg='#2b2b2b')
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
-        style.configure('TEntry', font=('Segoe UI', 11))
-        style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
-        style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
-                        font=('Segoe UI', 13, 'bold'))
-        style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa',
-                        font=('Segoe UI', 9))
 
         ttk.Label(root, text="📍 Localização", style='Header.TLabel').pack(pady=(15, 4))
 
@@ -533,9 +513,7 @@ def abrir_janela_localizacao():
         ttk.Button(btn_frame, text="💾 Salvar", command=salvar).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Cancelar", command=root.destroy).pack(side='left', padx=5)
 
-        root.mainloop()
-
-    threading.Thread(target=_criar_janela, daemon=True).start()
+    _tk_root.after(0, _criar_janela)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -880,7 +858,7 @@ def abrir_janela_alterar_pin():
     def _criar_janela():
         global senha
 
-        root = tk.Tk()
+        root = tk.Toplevel(_tk_root)
         root.title("Alterar PIN")
         root.resizable(False, False)
         root.attributes('-topmost', True)
@@ -891,13 +869,6 @@ def abrir_janela_alterar_pin():
         root.geometry(f"{largura}x{altura}+{x}+{y}")
 
         root.configure(bg='#2b2b2b')
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
-                        font=('Segoe UI', 11))
-        style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
-        style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
-                        font=('Segoe UI', 13, 'bold'))
 
         ttk.Label(root, text="🔑 Alterar PIN", style='Header.TLabel').pack(pady=(18, 12))
         ttk.Label(root, text="Novo PIN:").pack()
@@ -925,9 +896,7 @@ def abrir_janela_alterar_pin():
         ttk.Button(btn_frame, text="💾 Salvar", command=salvar).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Cancelar", command=root.destroy).pack(side='left', padx=5)
 
-        root.mainloop()
-
-    threading.Thread(target=_criar_janela, daemon=True).start()
+    _tk_root.after(0, _criar_janela)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -1158,6 +1127,7 @@ def _init_driver():
     options.add_argument(f"--user-data-dir={user_data_dir}")
     options.add_argument("--profile-directory=Default")
     options.add_argument("--window-size=1280,720")
+    options.add_argument("--remote-debugging-port=9222")
 
     print("[BatePonto] Abrindo Chrome...")
     try:
@@ -1281,6 +1251,7 @@ def clicar_opcao(horario_atual):
 
 janela_visivel = None
 systray_icon = None
+_tk_root = None
 
 
 def gerenciar_janela():
@@ -1485,4 +1456,16 @@ icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu
 
 systray_icon = icon
 
-icon.run()
+_tk_root = tk.Tk()
+_tk_root.withdraw()
+_tk_style = ttk.Style(_tk_root)
+_tk_style.theme_use('clam')
+_tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
+_tk_style.configure('TEntry', font=('Segoe UI', 11))
+_tk_style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+_tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=('Segoe UI', 13, 'bold'))
+_tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
+_tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
+
+icon.run_detached()
+_tk_root.mainloop()
