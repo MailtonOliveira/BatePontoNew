@@ -1247,54 +1247,9 @@ def clicar_opcao(horario_atual):
                 else:
                     driver.execute_script("arguments[0].click();", host)
 
-                # Aguarda até 30s: trata tela de câmera, modal de avaliação e verifica confirmação
-                for i in range(30):
-                    time.sleep(1)
-                    try:
-                        # Detecta tela de câmera e clica em "Continuar sem foto" → ponto confirmado
-                        botoes_continuar = driver.find_elements(
-                            By.XPATH,
-                            "//*[contains(text(),'Continuar sem foto') or contains(text(),'continuar sem foto')]"
-                        )
-                        if botoes_continuar:
-                            registrar_log("Tela de câmera detectada. Clicando em 'Continuar sem foto'.")
-                            driver.execute_script("arguments[0].click();", botoes_continuar[0])
-                            registrar_log(f"Ponto '{nome}' registrado (câmera confirmada).")
-                            return True
-
-                        # Modal de avaliação = ponto registrado com sucesso → fecha e retorna True
-                        modal_estrelas = driver.find_elements(
-                            By.XPATH,
-                            "//*[contains(text(),'estrela') or contains(text(),'avaliar') or contains(text(),'Avaliar') or contains(text(),'avaliação')]"
-                        )
-                        if modal_estrelas:
-                            registrar_log(f"Ponto '{nome}' registrado. Fechando modal de avaliação.")
-                            # Tenta fechar via botão de fechar (×) ou tecla Escape
-                            try:
-                                fechar = driver.find_elements(By.XPATH, "//*[@aria-label='Fechar' or @aria-label='Close' or @class[contains(.,'close')] or @class[contains(.,'fechar')]]")
-                                if fechar:
-                                    driver.execute_script("arguments[0].click();", fechar[0])
-                                else:
-                                    from selenium.webdriver.common.keys import Keys
-                                    driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
-                            except Exception:
-                                pass
-                            return True
-
-                        # Verifica se o ponto foi confirmado via atributo
-                        botoes_verify = driver.find_elements(By.CSS_SELECTOR, seletor)
-                        if botoes_verify:
-                            novo_ultimo = botoes_verify[0].get_attribute("ultimo-ponto")
-                            if novo_ultimo and novo_ultimo.startswith(hoje_str):
-                                registrar_log(f"Opção '{nome}' confirmada pelo site (ultimo-ponto={novo_ultimo}).")
-                                return True
-                    except Exception:
-                        pass
-
-                registrar_log(
-                    f"ATENÇÃO: Clique executado mas ponto '{nome}' não foi confirmado em 30s."
-                )
-                return False
+                msg = f"Opção '{nome}' selecionada. Página será reiniciada."
+                registrar_log(msg)
+                return True
             time.sleep(1)
 
         registrar_log(f"Timeout ({timeout_padrao}s): botão '{nome}' não encontrado.")
