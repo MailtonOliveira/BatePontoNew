@@ -1230,8 +1230,40 @@ def clicar_opcao(horario_atual):
                         if botoes_continuar:
                             registrar_log("Tela de câmera detectada. Clicando em 'Continuar sem foto'.")
                             driver.execute_script("arguments[0].click();", botoes_continuar[0])
-                            registrar_log(f"Ponto '{nome}' confirmado via câmera.")
-                            return True
+                            # Aguarda botão "Finalizar" e clica
+                            for _ in range(30):
+                                time.sleep(1)
+                                try:
+                                    hosts_finalizar = driver.find_elements(
+                                        By.CSS_SELECTOR,
+                                        "pontotel-botao.cabecalho-confirmacao__conteudo__botao"
+                                    )
+                                    if hosts_finalizar:
+                                        btn_f = driver.execute_script(
+                                            "return arguments[0].shadowRoot"
+                                            " ? arguments[0].shadowRoot.querySelector('button')"
+                                            " : arguments[0]",
+                                            hosts_finalizar[0]
+                                        )
+                                        driver.execute_script(
+                                            "arguments[0].click();",
+                                            btn_f if btn_f else hosts_finalizar[0]
+                                        )
+                                        registrar_log("Botão 'Finalizar' clicado. Aguardando conclusão...")
+                                        # Aguarda barra de progresso sumir
+                                        for _ in range(30):
+                                            time.sleep(1)
+                                            try:
+                                                if not driver.find_elements(By.CSS_SELECTOR, ".progresso__barra"):
+                                                    break
+                                            except Exception:
+                                                break
+                                        registrar_log(f"Ponto '{nome}' finalizado com sucesso.")
+                                        return True
+                                except Exception:
+                                    pass
+                            registrar_log(f"Botão 'Finalizar' não encontrado após câmera — ponto pode não ter sido registrado.")
+                            return False
                     except Exception:
                         pass
 
@@ -1384,7 +1416,6 @@ def main_loop():
                             _atualizar_icone('normal')
                             if systray_icon:
                                 systray_icon.notify(msg_ok, "Ponto Batido!")
-                            driver.refresh()
                         else:
                             registrar_log(f"Falha ao clicar no botão do ponto '{nome_ponto}'.")
                             _notificar_falha(nome_ponto)
