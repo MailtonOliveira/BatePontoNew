@@ -8,12 +8,15 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
 
 - **Registro Automático:** Bate os 4 pontos (Entrada, Pausa, Retorno, Saída) nos horários configurados.
 - **Configuração Segura (`.env`):** PIN e horários configurados via variável de ambiente, garantindo que dados sensíveis não fiquem expostos no código.
-- **Interface na Bandeja do Sistema (SysTray):** O script roda silenciosamente em segundo plano, acessível pelo ícone na área de notificação (Windows e Linux).
+- **Interface na Bandeja do Sistema (SysTray):** O script roda silenciosamente em segundo plano, acessível pelo ícone na área de notificação (Windows e Linux desktop).
+- **Modo Headless:** Chrome roda invisível em background com `BATEPONTO_HEADLESS=true` — sem janela visível, com systray ativo no Windows e Linux desktop.
+- **Modo Servidor:** Suporte a servidores Linux sem display (ex: Oracle Cloud, VPS) — sem systray, sem Tkinter, Chrome headless puro.
+- **Instalação Automática do Chrome:** Se o Chrome não estiver instalado, o app detecta e oferece instalar automaticamente (Windows: installer oficial; Linux: apt).
 - **Edição em Tempo Real:** Permite configurar os horários de batida através de uma janela nativa (Tkinter), propagando as alterações instantaneamente sem reiniciar.
-- **Janela Discreta:** A janela do Chrome é posicionada fora da visão após o setup (`position 10000,10000`), operando de forma não-intrusiva.
+- **Janela Discreta:** A janela do Chrome é posicionada fora da visão após o setup, operando de forma não-intrusiva.
 - **Proteção contra Duplicidade:** Verifica o "último ponto registrado" no HTML para garantir que o mesmo ponto não seja batido duas vezes no mesmo dia.
 - **Feriados e Fins de Semana:** Detecta automaticamente feriados nacionais, estaduais e municipais (via BrasilAPI + fallback local) e fins de semana, pulando a batida nesses dias.
-- **Localização Automática:** Detecta sua cidade e UF via IP para aplicar os feriados corretos. Pode ser configurado manualmente pelo menu.
+- **Localização Automática:** Detecta sua cidade e UF via IP para aplicar os feriados corretos. Configuração manual tem prioridade sobre detecção por IP.
 
 ### 🎨 Indicação visual por cor do ícone
 
@@ -33,17 +36,20 @@ Automação em Python usando Selenium para bater o ponto automaticamente no sist
 ## 💻 Pré-requisitos
 
 ### Windows
-- **Navegador:** Google Chrome instalado
-- **Python:** 3.10+ (apenas se for rodar o código-fonte)
+- **Navegador:** Google Chrome — se não estiver instalado, o app oferece instalar automaticamente
+- **Python:** 3.10+ (apenas se for rodar o código-fonte; o executável já inclui Python)
 
-### Linux 🐧
-- **Navegador:** Google Chrome ou Chromium instalado
+### Linux desktop 🐧
+- **Navegador:** Google Chrome ou Chromium — se não encontrado, o app oferece instalar via apt
 - **Python:** 3.10+
-- **Tkinter:** `sudo apt install python3-tk` (Ubuntu/Debian)
+- **Tkinter:** `sudo apt install python3-tk`
 - **Suporte ao SysTray:** `sudo apt install gir1.2-appindicator3-0.1` (GNOME) ou equivalente
 - **Foco automático de janela** *(opcional)*: `sudo apt install xdotool`
 
 > 💡 **Nota sobre SysTray no Linux:** Em desktops GNOME puro é necessário a extensão [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/). No KDE, XFCE, MATE e outros funciona nativamente.
+
+### Linux servidor (sem display)
+Consulte a seção [Modo Servidor](#️-modo-servidor-ubuntu-headless) abaixo.
 
 ---
 
@@ -116,6 +122,24 @@ A localização correta garante que feriados estaduais e municipais sejam respei
 
 ---
 
+## 🔇 Modo Headless (Chrome invisível)
+
+Ative com `BATEPONTO_HEADLESS=true` no `.env` para rodar o Chrome sem nenhuma janela visível. O systray continua ativo — você ainda acessa configurações pelo ícone na bandeja.
+
+| Plataforma | Chrome | Systray |
+|---|---|---|
+| Windows | Invisível | ✅ ativo |
+| Linux desktop (com display) | Invisível | ✅ ativo |
+| Linux servidor (sem display) | Invisível | ❌ não aplicável |
+
+```env
+BATEPONTO_HEADLESS=true
+```
+
+> Para servidores Linux sem display, veja a seção abaixo — o comportamento é detectado automaticamente pela ausência de `$DISPLAY`.
+
+---
+
 ## ☁️ Modo Servidor (Ubuntu headless)
 
 Para rodar em um servidor Ubuntu sem interface gráfica (ex: Oracle Cloud, VPS), o BatePonto suporta um modo headless que dispensa pystray, Tkinter e display virtual. O Chrome roda em background com `--headless=new`.
@@ -148,12 +172,12 @@ pip install -r requirements-server.txt
 
 ### Configuração do `.env`
 
-Crie o arquivo `.env` na pasta do projeto (`~/BatePonto/.env`) com `BATEPONTO_SERVER=true` e a localização manual (necessária pois o IP do servidor pode estar em outro estado):
+Crie o arquivo `.env` na pasta do projeto (`~/BatePonto/.env`) com `BATEPONTO_HEADLESS=true` (ou o alias `BATEPONTO_SERVER=true`) e a localização manual (necessária pois o IP do servidor pode estar em outro estado):
 
 ```env
 BATEPONTO_SENHA=seu_pin_aqui
 BATEPONTO_URL=https://bateponto.pontotel.com.br/
-BATEPONTO_SERVER=true
+BATEPONTO_HEADLESS=true
 CHROME_BIN=/opt/google/chrome/google-chrome
 HORARIO_ENTRADA=08:00
 HORARIO_PAUSA=12:50
