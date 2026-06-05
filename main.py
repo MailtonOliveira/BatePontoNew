@@ -1348,6 +1348,10 @@ def gerenciar_janela():
 # Startup
 # ──────────────────────────────────────────────────────────────
 
+if not platform_utils.verificar_e_instalar_chrome(server_mode=SERVER_MODE, log_fn=registrar_log):
+    registrar_log("Chrome não disponível. Encerrando.")
+    sys.exit(1)
+
 if SERVER_MODE:
     if not senha:
         print("[BatePonto] ERRO: BATEPONTO_SENHA não configurada no .env. Encerrando.")
