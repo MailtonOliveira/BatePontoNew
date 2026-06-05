@@ -76,10 +76,20 @@ python main.py
 
 ### Ubuntu / Linux desktop
 
-**Opção A — Executável (recomendado)**
+**Opção A — Instalador automático (recomendado)**
+
+Cole no terminal e siga as instruções:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh | bash
+```
+
+O script instala as dependências, baixa o binário mais recente, cria o atalho no menu de aplicativos e pergunta se deseja configurar o autostart.
+
+**Opção B — Executável manual**
 
 1. Baixe o binário `BatePonto` (sem extensão) na aba **Releases**.
-2. Instale as dependências do sistema:
+2. Instale as dependências:
    ```bash
    sudo apt install -y python3-tk gir1.2-appindicator3-0.1
    ```
@@ -88,17 +98,11 @@ python main.py
    chmod +x BatePonto
    ./BatePonto
    ```
-4. Na primeira execução o Chrome abre para login no Pontotel. O PIN é capturado automaticamente.
 
-> Se o Chrome não estiver instalado, o app pergunta se deseja instalar e faz isso automaticamente.
-
-**Opção B — Código-fonte**
+**Opção C — Código-fonte**
 
 ```bash
-# Dependências do sistema
 sudo apt install -y python3-venv python3-tk gir1.2-appindicator3-0.1
-
-# App
 git clone https://github.com/MailtonOliveira/BatePontoNew.git
 cd BatePontoNew
 python3 -m venv .venv
