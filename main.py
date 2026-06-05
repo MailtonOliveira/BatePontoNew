@@ -37,12 +37,16 @@ def get_env_path():
 ENV_PATH = get_env_path()
 load_dotenv(ENV_PATH)
 
-# BATEPONTO_HEADLESS=true ativa modo sem interface (headless Chrome, sem pystray/Tkinter)
-# BATEPONTO_SERVER=true é alias mantido para compatibilidade com instâncias existentes
+# BATEPONTO_HEADLESS=true  → Chrome headless (sem janela visível) em qualquer plataforma
+# BATEPONTO_SERVER=true    → alias para Linux/servidor (mantido para compatibilidade)
 _headless_env = os.getenv("BATEPONTO_HEADLESS", "") or os.getenv("BATEPONTO_SERVER", "")
-SERVER_MODE = _headless_env.lower() in ("1", "true", "yes")
+HEADLESS_CHROME = _headless_env.lower() in ("1", "true", "yes")
 
-print("[BatePonto] Inicializando..." + (" (modo headless)" if SERVER_MODE else ""))
+# No Linux, headless implica também sem systray/Tkinter (sem display).
+# No Windows, mantém systray mesmo em modo headless.
+SERVER_MODE = HEADLESS_CHROME and platform_utils.IS_LINUX
+
+print("[BatePonto] Inicializando..." + (" (headless)" if HEADLESS_CHROME else ""))
 
 senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
@@ -1142,8 +1146,7 @@ def _init_driver():
     options.add_argument("--window-size=1280,720")
     options.add_argument("--remote-debugging-port=9222")
 
-    if SERVER_MODE:
-        # Linux usa --headless=new; Windows usa --headless (mais compatível)
+    if HEADLESS_CHROME:
         if platform_utils.IS_LINUX:
             options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
@@ -1389,7 +1392,7 @@ def main_loop():
     resumo = ', '.join(f"{info['nome']}={h}" for h, info in horarios.items())
     registrar_log(f"Horários configurados: {resumo}")
     detectar_localizacao()
-    if not SERVER_MODE:
+    if not HEADLESS_CHROME:
         focar_janela_do_chrome()
 
     _ANTECEDENCIA = 10  # segundos antes do ponto para iniciar polling fino
