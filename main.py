@@ -37,9 +37,12 @@ def get_env_path():
 ENV_PATH = get_env_path()
 load_dotenv(ENV_PATH)
 
-SERVER_MODE = os.getenv("BATEPONTO_SERVER", "").lower() in ("1", "true", "yes")
+# BATEPONTO_HEADLESS=true ativa modo sem interface (headless Chrome, sem pystray/Tkinter)
+# BATEPONTO_SERVER=true é alias mantido para compatibilidade com instâncias existentes
+_headless_env = os.getenv("BATEPONTO_HEADLESS", "") or os.getenv("BATEPONTO_SERVER", "")
+SERVER_MODE = _headless_env.lower() in ("1", "true", "yes")
 
-print("[BatePonto] Inicializando..." + (" (modo servidor)" if SERVER_MODE else ""))
+print("[BatePonto] Inicializando..." + (" (modo headless)" if SERVER_MODE else ""))
 
 senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
@@ -1140,14 +1143,18 @@ def _init_driver():
     options.add_argument("--remote-debugging-port=9222")
 
     if SERVER_MODE:
-        options.add_argument("--headless=new")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+        # Linux usa --headless=new; Windows usa --headless (mais compatível)
+        if platform_utils.IS_LINUX:
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-software-rasterizer")
+        else:
+            options.add_argument("--headless")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-extensions")
-        options.add_argument("--disable-software-rasterizer")
         options.add_experimental_option("prefs", {
-            "profile.default_content_setting_values.geolocation": 2,  # 2 = bloquear
+            "profile.default_content_setting_values.geolocation": 2,
         })
         chrome_bin = os.getenv("CHROME_BIN", "")
         if chrome_bin:
