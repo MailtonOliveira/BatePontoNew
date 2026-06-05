@@ -103,5 +103,8 @@ echo ""
 read -rp "  Iniciar o BatePonto agora? [S/n] " resp
 if [[ ! "$resp" =~ ^[Nn]$ ]]; then
     info "Iniciando BatePonto..."
-    nohup "$BIN_PATH" &>/dev/null &
+    # Exporta DISPLAY para garantir que o wizard apareça
+    export DISPLAY="${DISPLAY:-:0}"
+    export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-autolaunch:}"
+    exec "$BIN_PATH"
 fi
