@@ -752,12 +752,12 @@ def abrir_setup_wizard(pular_para_passo2=False):
         tk.Frame(content, bg='#444444', height=1).pack(fill='x', padx=50, pady=(10, 6))
 
         tk.Checkbutton(content,
-                       text="🔇 Modo invisível (Chrome em background)",
+                       text="Modo invisível (Chrome oculto)",
                        variable=var_headless, **chk_kw).pack(anchor='w', padx=50)
         tk.Label(content,
-                 text="O Chrome roda oculto. O ícone na bandeja continua disponível.",
+                 text="O Chrome roda em background. O ícone na bandeja continua disponível.",
                  background='#2b2b2b', foreground='#777777',
-                 font=('Segoe UI', 8), wraplength=320, justify='left').pack(anchor='w', padx=68, pady=(0, 14))
+                 font=('Segoe UI', 8), wraplength=280, justify='left').pack(anchor='w', padx=72, pady=(0, 14))
 
         def _finalizar():
             exe_instalado = None
