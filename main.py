@@ -621,7 +621,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
     root.resizable(False, False)
     root.attributes('-topmost', True)
 
-    largura, altura = 420, 320
+    largura, altura = 420, 380
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
@@ -736,6 +736,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
         var_startup = tk.BooleanVar(value=True)
         var_menu = tk.BooleanVar(value=True)
         var_desktop = tk.BooleanVar(value=True)
+        var_headless = tk.BooleanVar(value=False)
 
         chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
                       selectcolor='#444444', activebackground='#2b2b2b',
@@ -745,7 +746,18 @@ def abrir_setup_wizard(pular_para_passo2=False):
         tk.Checkbutton(content, text=platform_utils.label_menu(),
                        variable=var_menu, **chk_kw).pack(anchor='w', padx=50, pady=(4, 0))
         tk.Checkbutton(content, text=platform_utils.label_desktop(),
-                       variable=var_desktop, **chk_kw).pack(anchor='w', padx=50, pady=(4, 14))
+                       variable=var_desktop, **chk_kw).pack(anchor='w', padx=50, pady=(4, 0))
+
+        # Separador visual
+        tk.Frame(content, bg='#444444', height=1).pack(fill='x', padx=50, pady=(10, 6))
+
+        tk.Checkbutton(content,
+                       text="🔇 Modo invisível (Chrome em background)",
+                       variable=var_headless, **chk_kw).pack(anchor='w', padx=50)
+        tk.Label(content,
+                 text="O Chrome roda oculto. O ícone na bandeja continua disponível.",
+                 background='#2b2b2b', foreground='#777777',
+                 font=('Segoe UI', 8), wraplength=320, justify='left').pack(anchor='w', padx=68, pady=(0, 14))
 
         def _finalizar():
             exe_instalado = None
@@ -757,6 +769,8 @@ def abrir_setup_wizard(pular_para_passo2=False):
                     criar_atalho_menu_iniciar(exe_instalado)
                 if var_desktop.get():
                     criar_atalho_desktop(exe_instalado)
+                set_key(ENV_PATH, "BATEPONTO_HEADLESS", "true" if var_headless.get() else "false")
+                registrar_log(f"Modo invisível: {'ativado' if var_headless.get() else 'desativado'}.")
             except Exception as e:
                 registrar_log(f"Erro durante instalação: {e}")
             try:
