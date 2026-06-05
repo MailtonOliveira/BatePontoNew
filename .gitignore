@@ -145,3 +145,8 @@ skills-lock.json
 # Build output
 dist/
 *.exe
+
+# Debug / artefatos locais
+build_log.txt
+*.png
+.playwright-mcp/
