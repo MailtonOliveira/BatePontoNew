@@ -344,3 +344,117 @@ def label_menu() -> str:
 def label_desktop() -> str:
     """Texto do checkbox de atalho na área de trabalho."""
     return "Atalho na Área de Trabalho" if IS_WINDOWS else "Atalho na Área de Trabalho"
+
+
+# ──────────────────────────────────────────────────────────────
+# Verificação e instalação de dependências
+# ──────────────────────────────────────────────────────────────
+
+def _encontrar_chrome() -> str | None:
+    """Retorna o caminho do binário do Chrome, ou None se não encontrado."""
+    if IS_WINDOWS:
+        candidatos = [
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Google", "Chrome", "Application", "chrome.exe"),
+            os.path.join(os.environ.get("PROGRAMFILES", ""), "Google", "Chrome", "Application", "chrome.exe"),
+            os.path.join(os.environ.get("PROGRAMFILES(X86)", ""), "Google", "Chrome", "Application", "chrome.exe"),
+        ]
+        for c in candidatos:
+            if os.path.isfile(c):
+                return c
+        return None
+    else:
+        for binario in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+            resultado = subprocess.run(["which", binario], capture_output=True, text=True)
+            if resultado.returncode == 0:
+                return resultado.stdout.strip()
+        return None
+
+
+def _instalar_chrome_windows(log_fn=None) -> bool:
+    """Baixa e executa o instalador do Chrome no Windows. Retorna True se instalou."""
+    try:
+        import urllib.request
+        import tempfile
+        if log_fn:
+            log_fn("Baixando instalador do Chrome...")
+        url = "https://dl.google.com/chrome/install/latest/chrome_installer.exe"
+        dest = os.path.join(tempfile.gettempdir(), "chrome_installer.exe")
+        urllib.request.urlretrieve(url, dest)
+        if log_fn:
+            log_fn("Executando instalador do Chrome...")
+        subprocess.run([dest], check=True)
+        return _encontrar_chrome() is not None
+    except Exception as e:
+        if log_fn:
+            log_fn(f"Erro ao instalar Chrome: {e}")
+        return False
+
+
+def _instalar_chrome_linux(log_fn=None) -> bool:
+    """Instala o Chrome via apt no Linux. Retorna True se instalou."""
+    try:
+        import urllib.request
+        if log_fn:
+            log_fn("Adicionando repositório do Google Chrome...")
+        cmds = [
+            "wget -q -O /tmp/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub",
+            "sudo apt-key add /tmp/google-chrome.gpg",
+            'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list',
+            "sudo apt-get update -q",
+            "sudo apt-get install -y google-chrome-stable",
+        ]
+        for cmd in cmds:
+            if log_fn:
+                log_fn(f"$ {cmd}")
+            resultado = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if resultado.returncode != 0:
+                if log_fn:
+                    log_fn(f"Falha: {resultado.stderr.strip()}")
+                return False
+        return _encontrar_chrome() is not None
+    except Exception as e:
+        if log_fn:
+            log_fn(f"Erro ao instalar Chrome: {e}")
+        return False
+
+
+def verificar_e_instalar_chrome(server_mode: bool = False, log_fn=None) -> bool:
+    """
+    Verifica se o Chrome está instalado.
+    - Se encontrado: retorna True.
+    - Se não encontrado em SERVER_MODE: loga erro e retorna False.
+    - Se não encontrado em modo GUI: exibe diálogo pedindo confirmação para instalar.
+    """
+    if _encontrar_chrome():
+        return True
+
+    msg = (
+        "Google Chrome não encontrado.\n\n"
+        "O BatePonto precisa do Chrome para funcionar.\n"
+        "Deseja instalar agora?"
+    )
+
+    if server_mode:
+        if log_fn:
+            log_fn("ERRO: Google Chrome não encontrado. Instale com: sudo apt install google-chrome-stable")
+        return False
+
+    # Modo GUI: pergunta ao usuário
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        resposta = messagebox.askyesno("Chrome não encontrado", msg, parent=root)
+        root.destroy()
+    except Exception:
+        resposta = False
+
+    if not resposta:
+        return False
+
+    if IS_WINDOWS:
+        return _instalar_chrome_windows(log_fn)
+    else:
+        return _instalar_chrome_linux(log_fn)
