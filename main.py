@@ -757,7 +757,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
         tk.Label(content,
                  text="O Chrome roda em background. O ícone na bandeja continua disponível.",
                  background='#2b2b2b', foreground='#777777',
-                 font=('Segoe UI', 8), wraplength=280, justify='left').pack(anchor='w', padx=72, pady=(0, 14))
+                 font=('Segoe UI', 8), wraplength=260, justify='left').pack(anchor='w', padx=(72, 10), pady=(0, 14))
 
         def _finalizar():
             exe_instalado = None
