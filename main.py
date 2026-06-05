@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import pystray
 from PIL import Image, ImageDraw
 import threading
 import os
@@ -38,7 +37,9 @@ def get_env_path():
 ENV_PATH = get_env_path()
 load_dotenv(ENV_PATH)
 
-print("[BatePonto] Inicializando...")
+SERVER_MODE = os.getenv("BATEPONTO_SERVER", "").lower() in ("1", "true", "yes")
+
+print("[BatePonto] Inicializando..." + (" (modo servidor)" if SERVER_MODE else ""))
 
 senha = os.getenv("BATEPONTO_SENHA", "")
 url = os.getenv("BATEPONTO_URL", "https://bateponto.pontotel.com.br/")
@@ -351,15 +352,24 @@ def _resolver_ibge_por_cidade(uf, cidade):
 
 def detectar_localizacao():
     """
-    Detecta UF e IBGE via IP (sempre primeiro).
-    Fallback: valores do .env ou padrão SP/3550308.
+    Detecta UF e IBGE.
+    Se REGIAO_UF está configurado no .env, usa diretamente (sem detecção por IP).
+    Caso contrário, detecta via IP com fallback para padrão SP/3550308.
     """
     global _localizacao_cache, _localizacao_auto_info
     with _localizacao_lock:
         if _localizacao_cache:
             return _localizacao_cache
 
-        # 1. Detecção via IP (sempre primeiro)
+        # 0. Configuração manual explícita no .env tem prioridade
+        uf_manual = os.getenv("REGIAO_UF", "").strip()
+        ibge_manual = os.getenv("REGIAO_IBGE", "").strip()
+        if uf_manual and ibge_manual:
+            _localizacao_cache = (uf_manual, ibge_manual)
+            registrar_log(f"Localização configurada manualmente: UF={uf_manual}, IBGE={ibge_manual}")
+            return _localizacao_cache
+
+        # 1. Detecção via IP
         try:
             geo_resp = requests.get(
                 "http://ip-api.com/json/?lang=pt-BR&fields=status,city,region",
@@ -1129,6 +1139,20 @@ def _init_driver():
     options.add_argument("--window-size=1280,720")
     options.add_argument("--remote-debugging-port=9222")
 
+    if SERVER_MODE:
+        options.add_argument("--headless=new")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_experimental_option("prefs", {
+            "profile.default_content_setting_values.geolocation": 2,  # 2 = bloquear
+        })
+        chrome_bin = os.getenv("CHROME_BIN", "")
+        if chrome_bin:
+            options.binary_location = chrome_bin
+
     print("[BatePonto] Abrindo Chrome...")
     try:
         driver = webdriver.Chrome(options=options)
@@ -1313,7 +1337,12 @@ def gerenciar_janela():
 # Startup
 # ──────────────────────────────────────────────────────────────
 
-if _primeiro_uso:
+if SERVER_MODE:
+    if not senha:
+        print("[BatePonto] ERRO: BATEPONTO_SENHA não configurada no .env. Encerrando.")
+        sys.exit(1)
+    _init_driver()
+elif _primeiro_uso:
     _init_driver()  # abre Chrome para detectar estado do perfil
     if janela_visivel:  # Chrome visível = precisa de login = wizard completo
         try:
@@ -1353,7 +1382,8 @@ def main_loop():
     resumo = ', '.join(f"{info['nome']}={h}" for h, info in horarios.items())
     registrar_log(f"Horários configurados: {resumo}")
     detectar_localizacao()
-    focar_janela_do_chrome()
+    if not SERVER_MODE:
+        focar_janela_do_chrome()
 
     _ANTECEDENCIA = 10  # segundos antes do ponto para iniciar polling fino
 
@@ -1475,28 +1505,32 @@ def alterar_pin_systray(icon, item):
     abrir_janela_alterar_pin()
 
 
-threading.Thread(target=main_loop, daemon=True).start()
+if SERVER_MODE:
+    main_loop()
+else:
+    import pystray
+    threading.Thread(target=main_loop, daemon=True).start()
 
-icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu(
-    pystray.MenuItem("⏰ Configurar Horários", configurar_horarios_systray),
-    pystray.MenuItem("📍 Configurar Localização", configurar_localizacao_systray),
-    pystray.MenuItem("🔑 Alterar PIN", alterar_pin_systray),
-    pystray.MenuItem("Último Log", mostrar_ultimo_log),
-    pystray.MenuItem("Sair", on_systray_exit)
-))
+    icon = pystray.Icon("bateponto", create_image(), "Bate Ponto", menu=pystray.Menu(
+        pystray.MenuItem("⏰ Configurar Horários", configurar_horarios_systray),
+        pystray.MenuItem("📍 Configurar Localização", configurar_localizacao_systray),
+        pystray.MenuItem("🔑 Alterar PIN", alterar_pin_systray),
+        pystray.MenuItem("Último Log", mostrar_ultimo_log),
+        pystray.MenuItem("Sair", on_systray_exit)
+    ))
 
-systray_icon = icon
+    systray_icon = icon
 
-_tk_root = tk.Tk()
-_tk_root.withdraw()
-_tk_style = ttk.Style(_tk_root)
-_tk_style.theme_use('clam')
-_tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
-_tk_style.configure('TEntry', font=('Segoe UI', 11))
-_tk_style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
-_tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=('Segoe UI', 13, 'bold'))
-_tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
-_tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
+    _tk_root = tk.Tk()
+    _tk_root.withdraw()
+    _tk_style = ttk.Style(_tk_root)
+    _tk_style.theme_use('clam')
+    _tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
+    _tk_style.configure('TEntry', font=('Segoe UI', 11))
+    _tk_style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+    _tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=('Segoe UI', 13, 'bold'))
+    _tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
+    _tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
 
-icon.run_detached()
-_tk_root.mainloop()
+    icon.run_detached()
+    _tk_root.mainloop()

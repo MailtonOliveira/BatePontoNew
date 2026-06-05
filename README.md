@@ -116,6 +116,111 @@ A localização correta garante que feriados estaduais e municipais sejam respei
 
 ---
 
+## ☁️ Modo Servidor (Ubuntu headless)
+
+Para rodar em um servidor Ubuntu sem interface gráfica (ex: Oracle Cloud, VPS), o BatePonto suporta um modo headless que dispensa pystray, Tkinter e display virtual. O Chrome roda em background com `--headless=new`.
+
+### Pré-requisitos no servidor
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv python3-tk wget gnupg2
+
+# Google Chrome
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | \
+    sudo tee /etc/apt/sources.list.d/google-chrome.list
+sudo apt update && sudo apt install -y google-chrome-stable
+
+# Timezone correto (Brasil)
+sudo timedatectl set-timezone America/Sao_Paulo
+```
+
+### Instalação
+
+```bash
+git clone https://github.com/MailtonOliveira/BatePontoNew.git ~/BatePonto
+cd ~/BatePonto
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-server.txt
+```
+
+### Configuração do `.env`
+
+Crie o arquivo `.env` na pasta do projeto (`~/BatePonto/.env`) com `BATEPONTO_SERVER=true` e a localização manual (necessária pois o IP do servidor pode estar em outro estado):
+
+```env
+BATEPONTO_SENHA=seu_pin_aqui
+BATEPONTO_URL=https://bateponto.pontotel.com.br/
+BATEPONTO_SERVER=true
+CHROME_BIN=/opt/google/chrome/google-chrome
+HORARIO_ENTRADA=08:00
+HORARIO_PAUSA=12:50
+HORARIO_RETORNO=13:50
+HORARIO_SAIDA=17:00
+TIMEOUT_PADRAO=15
+REGIAO_UF=MG
+REGIAO_IBGE=3106200
+```
+
+> ⚠️ Com `REGIAO_UF` e `REGIAO_IBGE` definidos, a detecção automática por IP é ignorada — necessário para servidores em datacenter.
+
+### Transferir perfil Chrome (sessão de login)
+
+O app precisa do perfil Chrome do Windows (onde você já fez login no Pontotel). No Windows, compacte e envie via SSH:
+
+```bash
+# No bash do Windows (Git Bash / WSL):
+tar -czf /tmp/chrome_profile.tar.gz -C "$LOCALAPPDATA/BatePonto" Chrome
+scp -i ~/.ssh/sua_chave /tmp/chrome_profile.tar.gz usuario@ip-servidor:~/
+```
+
+```bash
+# No servidor:
+mkdir -p ~/.local/share/BatePonto
+tar -xzf ~/chrome_profile.tar.gz -C ~/.local/share/BatePonto/
+```
+
+### Rodar como serviço systemd
+
+```bash
+sudo tee /etc/systemd/system/bateponto.service > /dev/null << 'EOF'
+[Unit]
+Description=BatePonto Automatico
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/BatePonto
+ExecStart=/home/ubuntu/BatePonto/.venv/bin/python3 -u -W ignore::FutureWarning -W ignore::DeprecationWarning /home/ubuntu/BatePonto/main.py
+Restart=on-failure
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now bateponto
+```
+
+### Monitorar logs
+
+```bash
+# Logs do systemd (tempo real)
+sudo journalctl -u bateponto -f
+
+# Arquivo de log do app
+tail -f /tmp/BatePonto/logs_bateponto.txt
+```
+
+---
+
 ## 📦 Como Buildar o Executável
 
 1. Instale o PyInstaller:
