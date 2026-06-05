@@ -55,38 +55,59 @@ Consulte a seção [Modo Servidor](#️-modo-servidor-ubuntu-headless) abaixo.
 
 ## ⚙️ Instalação e Uso
 
-### Opção 1: Executável Pronto (Recomendado)
+### Windows
 
-| Plataforma | Arquivo |
-|---|---|
-| Windows | `BatePonto.exe` |
-| Linux | `BatePonto` (binário ELF) |
+**Opção A — Executável (recomendado)**
 
-1. Baixe o executável correspondente à sua plataforma na aba **Releases**.
-2. **Linux:** torne o binário executável antes de rodar:
+1. Baixe o `BatePonto.exe` na aba **Releases**.
+2. Execute o arquivo — se o Chrome não estiver instalado, o app oferece instalar.
+3. Na primeira execução um wizard abre o Chrome para você fazer login no Pontotel. O PIN é capturado automaticamente.
+
+**Opção B — Código-fonte**
+
+```bash
+git clone https://github.com/MailtonOliveira/BatePontoNew.git
+cd BatePontoNew
+pip install -r requirements.txt
+python main.py
+```
+
+---
+
+### Ubuntu / Linux desktop
+
+**Opção A — Executável (recomendado)**
+
+1. Baixe o binário `BatePonto` (sem extensão) na aba **Releases**.
+2. Instale as dependências do sistema:
+   ```bash
+   sudo apt install -y python3-tk gir1.2-appindicator3-0.1
+   ```
+3. Torne executável e rode:
    ```bash
    chmod +x BatePonto
    ./BatePonto
    ```
-3. Na primeira execução um wizard vai guiar a configuração.
+4. Na primeira execução o Chrome abre para login no Pontotel. O PIN é capturado automaticamente.
 
-### Opção 2: Rodar do Código-Fonte
+> Se o Chrome não estiver instalado, o app pergunta se deseja instalar e faz isso automaticamente.
 
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/MailtonOliveira/BatePontoNew.git
-   cd BatePontoNew
-   ```
-2. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Inicie a automação:
-   ```bash
-   python main.py
-   ```
+**Opção B — Código-fonte**
 
-> ⚠️ **Primeiro uso:** Na primeira execução o app abre o Chrome e exibe um wizard. Faça login no Pontotel com seu e-mail/senha corporativo e aguarde — o PIN será capturado automaticamente e o arquivo `.env` será criado. Nos usos seguintes o login é silencioso.
+```bash
+# Dependências do sistema
+sudo apt install -y python3-venv python3-tk gir1.2-appindicator3-0.1
+
+# App
+git clone https://github.com/MailtonOliveira/BatePontoNew.git
+cd BatePontoNew
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 main.py
+```
+
+> ⚠️ **Primeiro uso (Windows e Linux):** O app abre o Chrome e exibe um wizard. Faça login no Pontotel com seu e-mail/senha corporativo e aguarde — o PIN é capturado automaticamente e o `.env` é criado. Nas execuções seguintes o login é silencioso.
 
 ---
 
