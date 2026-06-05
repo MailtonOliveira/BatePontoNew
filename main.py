@@ -42,9 +42,10 @@ load_dotenv(ENV_PATH)
 _headless_env = os.getenv("BATEPONTO_HEADLESS", "") or os.getenv("BATEPONTO_SERVER", "")
 HEADLESS_CHROME = _headless_env.lower() in ("1", "true", "yes")
 
-# No Linux, headless implica também sem systray/Tkinter (sem display).
-# No Windows, mantém systray mesmo em modo headless.
-SERVER_MODE = HEADLESS_CHROME and platform_utils.IS_LINUX
+# Sem systray/Tkinter apenas quando não há display disponível (servidor Linux sem GUI).
+# Linux com desktop (DISPLAY ou WAYLAND_DISPLAY definido) mantém o systray normalmente.
+_has_display = bool(os.getenv("DISPLAY") or os.getenv("WAYLAND_DISPLAY") or not platform_utils.IS_LINUX)
+SERVER_MODE = HEADLESS_CHROME and not _has_display
 
 print("[BatePonto] Inicializando..." + (" (headless)" if HEADLESS_CHROME else ""))
 
