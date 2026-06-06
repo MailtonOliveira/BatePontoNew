@@ -551,7 +551,7 @@ def abrir_input_pin_simples():
     root.resizable(False, False)
     root.attributes('-topmost', True)
 
-    largura, altura = 360, 240
+    largura, altura = 420, 320
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
@@ -628,7 +628,8 @@ def abrir_setup_wizard(pular_para_passo2=False):
     _font_header = ('Segoe UI', 14, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 13, 'bold')
     _font_sub    = ('Segoe UI', 9) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 9)
 
-    largura, altura = 480, 440
+    largura = 520 if platform_utils.IS_LINUX else 480
+    altura  = 500 if platform_utils.IS_LINUX else 440
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
@@ -727,6 +728,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
     def _mostrar_conclusao():
         if _spinner_job[0]:
             root.after_cancel(_spinner_job[0])
+        root.geometry(f"{largura}x{altura}")
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 6))
         tk.Label(content, text="✅ Configuração concluída!",
@@ -746,23 +748,25 @@ def abrir_setup_wizard(pular_para_passo2=False):
         chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
                       selectcolor='#444444', activebackground='#2b2b2b',
                       activeforeground='#ffffff', font=_font_ui)
+        _px = 20 if platform_utils.IS_LINUX else 50
+        _wrap = largura - (_px * 2) - 60
         tk.Checkbutton(content, text=platform_utils.label_startup(),
-                       variable=var_startup, **chk_kw).pack(anchor='w', padx=50)
+                       variable=var_startup, **chk_kw).pack(anchor='w', padx=_px)
         tk.Checkbutton(content, text=platform_utils.label_menu(),
-                       variable=var_menu, **chk_kw).pack(anchor='w', padx=50, pady=(4, 0))
+                       variable=var_menu, **chk_kw).pack(anchor='w', padx=_px, pady=(4, 0))
         tk.Checkbutton(content, text=platform_utils.label_desktop(),
-                       variable=var_desktop, **chk_kw).pack(anchor='w', padx=50, pady=(4, 0))
+                       variable=var_desktop, **chk_kw).pack(anchor='w', padx=_px, pady=(4, 0))
 
         # Separador visual
-        tk.Frame(content, bg='#444444', height=1).pack(fill='x', padx=50, pady=(10, 6))
+        tk.Frame(content, bg='#444444', height=1).pack(fill='x', padx=_px, pady=(10, 6))
 
         tk.Checkbutton(content,
                        text="Modo invisível (Chrome oculto)",
-                       variable=var_headless, **chk_kw).pack(anchor='w', padx=50)
+                       variable=var_headless, **chk_kw).pack(anchor='w', padx=_px)
         tk.Label(content,
                  text="O Chrome roda em background. O ícone na bandeja continua disponível.",
                  background='#2b2b2b', foreground='#777777',
-                 font=_font_sub, wraplength=340, justify='left').pack(anchor='w', padx=(72, 10), pady=(0, 14))
+                 font=_font_sub, wraplength=_wrap, justify='left').pack(anchor='w', padx=(_px + 22, 10), pady=(0, 14))
 
         def _finalizar():
             exe_instalado = None
