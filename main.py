@@ -628,8 +628,8 @@ def abrir_setup_wizard(pular_para_passo2=False):
     _font_header = ('Segoe UI', 14, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 13, 'bold')
     _font_sub    = ('Segoe UI', 9) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 9)
 
-    largura = 520 if platform_utils.IS_LINUX else 480
-    altura  = 500 if platform_utils.IS_LINUX else 440
+    largura = 580 if platform_utils.IS_LINUX else 480
+    altura  = 520 if platform_utils.IS_LINUX else 440
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
@@ -872,6 +872,8 @@ def abrir_setup_wizard(pular_para_passo2=False):
 
     def _on_pin_resultado(pin):
         root.deiconify()
+        root.geometry(f"{largura}x{altura}")
+        root.update()
         root.attributes('-topmost', True)
         root.lift()
         root.focus_force()
