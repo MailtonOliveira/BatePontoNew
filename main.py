@@ -609,11 +609,8 @@ def abrir_input_pin_simples():
     root.mainloop()
 
 
-def abrir_setup_wizard(pular_para_passo2=False):
-    """
-    Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir).
-    Se pular_para_passo2=True, o Chrome já está aberto — vai direto para o passo 2.
-    """
+def abrir_setup_wizard():
+    """Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir)."""
     global senha
 
     root = tk.Tk()
@@ -844,8 +841,12 @@ def abrir_setup_wizard(pular_para_passo2=False):
         registrar_log("PIN capturado e salvo durante setup inicial.")
 
     def _iniciar():
-        if not pular_para_passo2:
-            _init_driver()
+        _init_driver()
+        if not janela_visivel:
+            # Perfil já tem sessão — só precisa do PIN, pula direto para conclusão
+            root.destroy()
+            abrir_input_pin_simples()
+            return
         _mostrar_passo2()
 
     def _reiniciar():
@@ -881,10 +882,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
             except Exception:
                 _mostrar_erro_chrome()
 
-    if pular_para_passo2:
-        _mostrar_passo2()
-    else:
-        _mostrar_passo1()
+    _mostrar_passo1()
     root.mainloop()
 
 
@@ -1377,15 +1375,8 @@ if SERVER_MODE:
         sys.exit(1)
     _init_driver()
 elif _primeiro_uso:
-    _init_driver()  # abre Chrome para detectar estado do perfil
-    if janela_visivel:  # Chrome visível = precisa de login = wizard completo
-        try:
-            driver.set_window_position(10000, 10000)  # esconde até usuário clicar no wizard
-        except Exception:
-            pass
-        abrir_setup_wizard(pular_para_passo2=True)
-    else:  # Chrome oculto = perfil já configurado = só precisa do PIN
-        abrir_input_pin_simples()
+    # Chrome só abre quando o usuário clicar "Iniciar" no wizard
+    abrir_setup_wizard()
 else:
     _init_driver()
 
