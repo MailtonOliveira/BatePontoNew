@@ -668,8 +668,10 @@ def abrir_setup_wizard():
         ttk.Button(content, text="Iniciar →", command=_iniciar).pack()
 
     def _mostrar_passo2():
+        root.geometry(f"{largura}x{altura}")
         root.attributes('-topmost', False)
         _limpar()
+        content.configure(bg='#2b2b2b')
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 8))
 
         def _abrir_chrome_pontotel():
@@ -844,19 +846,11 @@ def abrir_setup_wizard():
         registrar_log("PIN capturado e salvo durante setup inicial.")
 
     def _iniciar():
-        _limpar()
-        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 16))
-        _spin_var = tk.StringVar(value="◐  Iniciando Chrome...")
-        tk.Label(content, textvariable=_spin_var, background='#2b2b2b',
-                 foreground='#aaaaaa', font=_font_ui).pack(pady=20)
-
-        _chars = ['◐', '◓', '◑', '◒']
-        _si = [0]
-        def _tick():
-            _si[0] = (_si[0] + 1) % 4
-            _spin_var.set(f"{_chars[_si[0]]}  Iniciando Chrome...")
-            root.after(300, _tick)
-        root.after(300, _tick)
+        # Desabilita o botão e mostra feedback imediato
+        for w in content.winfo_children():
+            if isinstance(w, ttk.Button):
+                w.configure(state='disabled', text='◐  Iniciando...')
+                break
 
         def _thread():
             _init_driver()
@@ -864,11 +858,9 @@ def abrir_setup_wizard():
 
         def _on_chrome_pronto():
             if janela_visivel is False:
-                # Perfil já tem sessão salva — só pede o PIN
                 root.destroy()
                 abrir_input_pin_simples()
             else:
-                # Precisa de login (True) ou indeterminado (None) → mostra passo2
                 _mostrar_passo2()
 
         threading.Thread(target=_thread, daemon=True).start()
