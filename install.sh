@@ -81,8 +81,8 @@ if [ "$USE_SOURCE" = true ]; then
 
     info "Criando ambiente virtual Python..."
     python3 -m venv "$SRC_DIR/.venv"
+    "$SRC_DIR/.venv/bin/pip" install -q --upgrade pip
     "$SRC_DIR/.venv/bin/pip" install -q -r "$SRC_DIR/requirements-server.txt"
-    # Instala pystray para modo desktop
     "$SRC_DIR/.venv/bin/pip" install -q "pystray>=0.19" 2>/dev/null || true
 
     # Cria wrapper executável
