@@ -86,27 +86,16 @@ if [ "$USE_SOURCE" = true ]; then
     "$SRC_DIR/.venv/bin/pip" install -q "pystray>=0.19" 2>/dev/null || true
 
     # Cria wrapper executável
-    cat > "$BIN_PATH" << WRAPPER
-#!/usr/bin/env bash
-exec "$SRC_DIR/.venv/bin/python3" "$SRC_DIR/main.py" "\$@"
-WRAPPER
+    printf '#!/usr/bin/env bash\nexec "%s/.venv/bin/python3" "%s/main.py" "$@"\n' \
+        "$SRC_DIR" "$SRC_DIR" > "$BIN_PATH"
     chmod +x "$BIN_PATH"
     info "Instalado do código-fonte em: $SRC_DIR"
 fi
 
 # ── Atalho no menu de aplicativos ─────────────────────────────
 mkdir -p "$DESKTOP_DIR"
-cat > "$DESKTOP_DIR/bateponto.desktop" << EOF
-[Desktop Entry]
-Type=Application
-Name=BatePonto
-Comment=Automação de ponto no Pontotel
-Exec=$BIN_PATH
-Icon=appointment
-Terminal=false
-Categories=Utility;
-StartupNotify=false
-EOF
+printf '[Desktop Entry]\nType=Application\nName=BatePonto\nComment=Automação de ponto no Pontotel\nExec=%s\nIcon=appointment\nTerminal=false\nCategories=Utility;\nStartupNotify=false\n' \
+    "$BIN_PATH" > "$DESKTOP_DIR/bateponto.desktop"
 chmod +x "$DESKTOP_DIR/bateponto.desktop"
 info "Atalho criado no menu de aplicativos."
 
