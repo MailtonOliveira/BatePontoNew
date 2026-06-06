@@ -68,12 +68,19 @@ fi
 if [ "$USE_SOURCE" = true ]; then
     info "Clonando repositório..."
     rm -rf "$SRC_DIR"
-    git clone --depth=1 "https://github.com/$REPO.git" "$SRC_DIR"
+    git clone --depth=1 "https://github.com/$REPO.git" "$SRC_DIR" \
+        || erro "Falha ao clonar repositório. Verifique sua conexão."
+
+    [ -f "$SRC_DIR/main.py" ] \
+        || erro "Clone incompleto — main.py não encontrado em $SRC_DIR"
 
     info "Criando ambiente virtual Python..."
-    python3 -m venv "$SRC_DIR/.venv"
+    python3 -m venv "$SRC_DIR/.venv" \
+        || erro "Falha ao criar ambiente virtual Python."
+
     "$SRC_DIR/.venv/bin/pip" install -q --upgrade pip
-    "$SRC_DIR/.venv/bin/pip" install -q -r "$SRC_DIR/requirements-server.txt"
+    "$SRC_DIR/.venv/bin/pip" install -q -r "$SRC_DIR/requirements-server.txt" \
+        || erro "Falha ao instalar dependências Python."
     "$SRC_DIR/.venv/bin/pip" install -q "pystray>=0.19" 2>/dev/null || true
 
     printf '#!/usr/bin/env bash\nexec "%s/.venv/bin/python3" "%s/main.py" "$@"\n' \
