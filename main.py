@@ -729,13 +729,13 @@ def abrir_setup_wizard(pular_para_passo2=False):
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 6))
         tk.Label(content, text="✅ Configuração concluída!",
-                 font=('Segoe UI', 13, 'bold'), background='#2b2b2b',
+                 font=_font_header, background='#2b2b2b',
                  foreground='#4CAF50').pack(pady=(0, 6))
         tk.Label(content,
                  text="PIN salvo. Escolha as opções e clique em Concluir\npara instalar e reiniciar o app.",
-                 wraplength=360, justify='center',
+                 wraplength=420, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=('Segoe UI', 10)).pack(pady=(0, 10))
+                 font=_font_ui).pack(pady=(0, 10))
 
         var_startup = tk.BooleanVar(value=True)
         var_menu = tk.BooleanVar(value=True)
@@ -744,7 +744,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
 
         chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
                       selectcolor='#444444', activebackground='#2b2b2b',
-                      activeforeground='#ffffff', font=('Segoe UI', 10))
+                      activeforeground='#ffffff', font=_font_ui)
         tk.Checkbutton(content, text=platform_utils.label_startup(),
                        variable=var_startup, **chk_kw).pack(anchor='w', padx=50)
         tk.Checkbutton(content, text=platform_utils.label_menu(),
@@ -801,18 +801,18 @@ def abrir_setup_wizard(pular_para_passo2=False):
         tk.Label(content,
                  text="Não consegui capturar o PIN automaticamente.\n"
                       "Digite-o manualmente:",
-                 wraplength=360, justify='center',
+                 wraplength=420, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=('Segoe UI', 11)).pack(pady=(0, 10))
+                 font=_font_ui).pack(pady=(0, 10))
         var_pin = tk.StringVar()
         entry = ttk.Entry(content, textvariable=var_pin, width=12, justify='center',
-                          font=('Segoe UI', 14), show='*')
+                          font=_font_ui, show='*')
         entry.pack(pady=(0, 6))
         tk.Label(content,
                  text="💡 Dica: no primeiro cadastro na plataforma, o PIN geralmente é o seu CPF.",
-                 wraplength=340, justify='center',
+                 wraplength=420, justify='center',
                  background='#2b2b2b', foreground='#aaaaaa',
-                 font=('Segoe UI', 8)).pack(pady=(0, 14))
+                 font=_font_sub).pack(pady=(0, 14))
         entry.focus()
 
         def _salvar_manual():
@@ -831,9 +831,9 @@ def abrir_setup_wizard(pular_para_passo2=False):
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
         tk.Label(content, text="O Chrome foi fechado antes de concluir.",
-                 wraplength=360, justify='center',
+                 wraplength=420, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=('Segoe UI', 11)).pack(pady=(0, 10))
+                 font=_font_ui).pack(pady=(0, 10))
         ttk.Button(content, text="Tentar novamente", command=_reiniciar).pack(pady=(0, 6))
         ttk.Button(content, text="Cancelar", command=_cancelar).pack()
 
