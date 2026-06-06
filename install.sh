@@ -101,7 +101,7 @@ info "Atalho criado no menu de aplicativos."
 
 # ── Autostart ─────────────────────────────────────────────────
 echo ""
-read -rp "  Iniciar BatePonto automaticamente com o sistema? [s/N] " resp
+read -rp "  Iniciar BatePonto automaticamente com o sistema? [s/N] " resp </dev/tty
 if [[ "$resp" =~ ^[Ss]$ ]]; then
     mkdir -p "$AUTOSTART_DIR"
     cp "$DESKTOP_DIR/bateponto.desktop" "$AUTOSTART_DIR/bateponto.desktop"
@@ -116,7 +116,7 @@ echo "  Para iniciar:  $BIN_PATH"
 echo "  Ou pelo menu de aplicativos: BatePonto"
 echo ""
 
-read -rp "  Iniciar o BatePonto agora? [S/n] " resp
+read -rp "  Iniciar o BatePonto agora? [S/n] " resp </dev/tty
 if [[ ! "$resp" =~ ^[Nn]$ ]]; then
     info "Iniciando BatePonto..."
     export DISPLAY="${DISPLAY:-:0}"
