@@ -81,7 +81,7 @@ python main.py
 Cole no terminal e siga as instruções:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh -o /tmp/install.sh && bash /tmp/install.sh
 ```
 
 O script instala as dependências, baixa o binário mais recente, cria o atalho no menu de aplicativos e pergunta se deseja configurar o autostart.
