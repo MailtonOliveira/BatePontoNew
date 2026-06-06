@@ -750,6 +750,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
                       activeforeground='#ffffff', font=_font_ui)
         _px = 20 if platform_utils.IS_LINUX else 50
         _wrap = largura - (_px * 2) - 60
+        chk_kw['wraplength'] = _wrap
         tk.Checkbutton(content, text=platform_utils.label_startup(),
                        variable=var_startup, **chk_kw).pack(anchor='w', padx=_px)
         tk.Checkbutton(content, text=platform_utils.label_menu(),
