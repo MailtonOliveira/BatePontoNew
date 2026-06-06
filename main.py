@@ -674,6 +674,19 @@ def abrir_setup_wizard():
         content.configure(bg='#2b2b2b')
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 8))
 
+        # Inicia Chrome em background logo que passo2 é exibido
+        def _iniciar_chrome():
+            _init_driver()
+            root.after(0, _on_chrome_pronto)
+
+        def _on_chrome_pronto():
+            if janela_visivel is False:
+                root.destroy()
+                abrir_input_pin_simples()
+            # Se janela_visivel True ou None: usuário precisa logar — botão já está visível
+
+        threading.Thread(target=_iniciar_chrome, daemon=True).start()
+
         def _abrir_chrome_pontotel():
             try:
                 if driver:
@@ -846,24 +859,7 @@ def abrir_setup_wizard():
         registrar_log("PIN capturado e salvo durante setup inicial.")
 
     def _iniciar():
-        # Desabilita o botão e mostra feedback imediato
-        for w in content.winfo_children():
-            if isinstance(w, ttk.Button):
-                w.configure(state='disabled', text='◐  Iniciando...')
-                break
-
-        def _thread():
-            _init_driver()
-            root.after(0, _on_chrome_pronto)
-
-        def _on_chrome_pronto():
-            if janela_visivel is False:
-                root.destroy()
-                abrir_input_pin_simples()
-            else:
-                _mostrar_passo2()
-
-        threading.Thread(target=_thread, daemon=True).start()
+        _mostrar_passo2()
 
     def _reiniciar():
         global driver
