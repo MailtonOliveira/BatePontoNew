@@ -555,17 +555,14 @@ def abrir_input_pin_simples():
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
 
-    _f_ui  = ('Segoe UI', 11)  if platform_utils.IS_WINDOWS else ('DejaVu Sans', 11)
-    _f_btn = ('Segoe UI', 10, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 10, 'bold')
-    _f_hdr = ('Segoe UI', 13, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 13, 'bold')
-    _f_sub = ('Segoe UI', 8)  if platform_utils.IS_WINDOWS else ('DejaVu Sans', 8)
-
     root.configure(bg='#2b2b2b')
     style = ttk.Style()
     style.theme_use('clam')
-    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=_f_ui)
-    style.configure('TButton', font=_f_btn, padding=6)
-    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=_f_hdr)
+    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
+                    font=('Segoe UI', 11))
+    style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
+                    font=('Segoe UI', 13, 'bold'))
 
     ttk.Label(root, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(18, 8))
     ttk.Label(root,
@@ -574,12 +571,12 @@ def abrir_input_pin_simples():
 
     var_pin = tk.StringVar()
     entry = ttk.Entry(root, textvariable=var_pin, width=14, justify='center',
-                      font=_f_ui, show='*')
+                      font=('Segoe UI', 14), show='*')
     entry.pack(pady=(0, 8))
     ttk.Label(root,
               text="💡 Dica: no primeiro cadastro na plataforma, o PIN geralmente é o seu CPF.",
               wraplength=300, justify='center',
-              font=_f_sub).pack(pady=(0, 12))
+              font=('Segoe UI', 8)).pack(pady=(0, 12))
     entry.focus()
 
     def salvar():
@@ -612,8 +609,11 @@ def abrir_input_pin_simples():
     root.mainloop()
 
 
-def abrir_setup_wizard():
-    """Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir)."""
+def abrir_setup_wizard(pular_para_passo2=False):
+    """
+    Wizard de primeiro uso. Roda na thread principal (bloqueia até concluir).
+    Se pular_para_passo2=True, o Chrome já está aberto — vai direto para o passo 2.
+    """
     global senha
 
     root = tk.Tk()
@@ -668,24 +668,9 @@ def abrir_setup_wizard():
         ttk.Button(content, text="Iniciar →", command=_iniciar).pack()
 
     def _mostrar_passo2():
-        root.geometry(f"{largura}x{altura}")
         root.attributes('-topmost', False)
         _limpar()
-        content.configure(bg='#2b2b2b')
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 8))
-
-        # Inicia Chrome em background logo que passo2 é exibido
-        def _iniciar_chrome():
-            _init_driver()
-            root.after(0, _on_chrome_pronto)
-
-        def _on_chrome_pronto():
-            if janela_visivel is False:
-                root.destroy()
-                abrir_input_pin_simples()
-            # Se janela_visivel True ou None: usuário precisa logar — botão já está visível
-
-        threading.Thread(target=_iniciar_chrome, daemon=True).start()
 
         def _abrir_chrome_pontotel():
             try:
@@ -708,7 +693,7 @@ def abrir_setup_wizard():
                               text="▶  Abrir site da Pontotel",
                               command=_abrir_chrome_pontotel,
                               background='#4CAF50', foreground='#ffffff',
-                              font=_font_btn,
+                              font=('Segoe UI', 11, 'bold'),
                               relief='flat', padx=16, pady=8,
                               cursor='hand2', activebackground='#388E3C',
                               activeforeground='#ffffff')
@@ -718,11 +703,11 @@ def abrir_setup_wizard():
                     "●  Digite seu PIN quando pedido",
                     "●  Não feche o Chrome"]:
             tk.Label(content, text=txt, background='#2b2b2b', foreground='#aaaaaa',
-                     font=_font_sub).pack(anchor='w', pady=1)
+                     font=('Segoe UI', 9)).pack(anchor='w', pady=1)
 
         spinner_var = tk.StringVar(value="◐  Detectando PIN...")
         tk.Label(content, textvariable=spinner_var, background='#2b2b2b',
-                 foreground='#aaaaaa', font=_font_sub).pack(pady=(14, 0))
+                 foreground='#aaaaaa', font=('Segoe UI', 9)).pack(pady=(14, 0))
 
         def _tick_spinner():
             _spinner_idx[0] = (_spinner_idx[0] + 1) % len(_spinner_chars)
@@ -744,13 +729,13 @@ def abrir_setup_wizard():
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 6))
         tk.Label(content, text="✅ Configuração concluída!",
-                 font=_font_header, background='#2b2b2b',
+                 font=('Segoe UI', 13, 'bold'), background='#2b2b2b',
                  foreground='#4CAF50').pack(pady=(0, 6))
         tk.Label(content,
                  text="PIN salvo. Escolha as opções e clique em Concluir\npara instalar e reiniciar o app.",
-                 wraplength=420, justify='center',
+                 wraplength=360, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=_font_ui).pack(pady=(0, 10))
+                 font=('Segoe UI', 10)).pack(pady=(0, 10))
 
         var_startup = tk.BooleanVar(value=True)
         var_menu = tk.BooleanVar(value=True)
@@ -759,7 +744,7 @@ def abrir_setup_wizard():
 
         chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
                       selectcolor='#444444', activebackground='#2b2b2b',
-                      activeforeground='#ffffff', font=_font_ui)
+                      activeforeground='#ffffff', font=('Segoe UI', 10))
         tk.Checkbutton(content, text=platform_utils.label_startup(),
                        variable=var_startup, **chk_kw).pack(anchor='w', padx=50)
         tk.Checkbutton(content, text=platform_utils.label_menu(),
@@ -816,18 +801,18 @@ def abrir_setup_wizard():
         tk.Label(content,
                  text="Não consegui capturar o PIN automaticamente.\n"
                       "Digite-o manualmente:",
-                 wraplength=420, justify='center',
+                 wraplength=360, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=_font_ui).pack(pady=(0, 10))
+                 font=('Segoe UI', 11)).pack(pady=(0, 10))
         var_pin = tk.StringVar()
         entry = ttk.Entry(content, textvariable=var_pin, width=12, justify='center',
-                          font=_font_ui, show='*')
+                          font=('Segoe UI', 14), show='*')
         entry.pack(pady=(0, 6))
         tk.Label(content,
                  text="💡 Dica: no primeiro cadastro na plataforma, o PIN geralmente é o seu CPF.",
-                 wraplength=420, justify='center',
+                 wraplength=340, justify='center',
                  background='#2b2b2b', foreground='#aaaaaa',
-                 font=_font_sub).pack(pady=(0, 14))
+                 font=('Segoe UI', 8)).pack(pady=(0, 14))
         entry.focus()
 
         def _salvar_manual():
@@ -846,9 +831,9 @@ def abrir_setup_wizard():
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
         tk.Label(content, text="O Chrome foi fechado antes de concluir.",
-                 wraplength=420, justify='center',
+                 wraplength=360, justify='center',
                  background='#2b2b2b', foreground='#ffffff',
-                 font=_font_ui).pack(pady=(0, 10))
+                 font=('Segoe UI', 11)).pack(pady=(0, 10))
         ttk.Button(content, text="Tentar novamente", command=_reiniciar).pack(pady=(0, 6))
         ttk.Button(content, text="Cancelar", command=_cancelar).pack()
 
@@ -859,6 +844,8 @@ def abrir_setup_wizard():
         registrar_log("PIN capturado e salvo durante setup inicial.")
 
     def _iniciar():
+        if not pular_para_passo2:
+            _init_driver()
         _mostrar_passo2()
 
     def _reiniciar():
@@ -894,7 +881,10 @@ def abrir_setup_wizard():
             except Exception:
                 _mostrar_erro_chrome()
 
-    _mostrar_passo1()
+    if pular_para_passo2:
+        _mostrar_passo2()
+    else:
+        _mostrar_passo1()
     root.mainloop()
 
 
@@ -1387,8 +1377,15 @@ if SERVER_MODE:
         sys.exit(1)
     _init_driver()
 elif _primeiro_uso:
-    # Chrome só abre quando o usuário clicar "Iniciar" no wizard
-    abrir_setup_wizard()
+    _init_driver()  # abre Chrome para detectar estado do perfil
+    if janela_visivel:  # Chrome visível = precisa de login = wizard completo
+        try:
+            driver.set_window_position(10000, 10000)  # esconde até usuário clicar no wizard
+        except Exception:
+            pass
+        abrir_setup_wizard(pular_para_passo2=True)
+    else:  # Chrome oculto = perfil já configurado = só precisa do PIN
+        abrir_input_pin_simples()
 else:
     _init_driver()
 
@@ -1562,13 +1559,12 @@ else:
     _tk_root.withdraw()
     _tk_style = ttk.Style(_tk_root)
     _tk_style.theme_use('clam')
-    _sys_font = 'Segoe UI' if platform_utils.IS_WINDOWS else 'DejaVu Sans'
-    _tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=(_sys_font, 11))
-    _tk_style.configure('TEntry', font=(_sys_font, 11))
-    _tk_style.configure('TButton', font=(_sys_font, 10, 'bold'), padding=6)
-    _tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=(_sys_font, 13, 'bold'))
-    _tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=(_sys_font, 9))
-    _tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=(_sys_font, 9))
+    _tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
+    _tk_style.configure('TEntry', font=('Segoe UI', 11))
+    _tk_style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
+    _tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=('Segoe UI', 13, 'bold'))
+    _tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
+    _tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
 
     icon.run_detached()
     _tk_root.mainloop()
