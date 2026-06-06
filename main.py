@@ -772,12 +772,18 @@ def abrir_setup_wizard(pular_para_passo2=False):
             exe_instalado = None
             try:
                 exe_instalado = instalar_app()
-                if var_startup.get():
-                    criar_atalho_startup(exe_instalado)
-                if var_menu.get():
-                    criar_atalho_menu_iniciar(exe_instalado)
-                if var_desktop.get():
-                    criar_atalho_desktop(exe_instalado)
+                # Modo código-fonte: usa o wrapper criado pelo install.sh
+                if exe_instalado is None and platform_utils.IS_LINUX:
+                    wrapper = os.path.join(platform_utils.get_install_dir(), 'BatePonto')
+                    if os.path.exists(wrapper):
+                        exe_instalado = wrapper
+                if exe_instalado:
+                    if var_startup.get():
+                        criar_atalho_startup(exe_instalado)
+                    if var_menu.get():
+                        criar_atalho_menu_iniciar(exe_instalado)
+                    if var_desktop.get():
+                        criar_atalho_desktop(exe_instalado)
                 set_key(ENV_PATH, "BATEPONTO_HEADLESS", "true" if var_headless.get() else "false")
                 registrar_log(f"Modo invisível: {'ativado' if var_headless.get() else 'desativado'}.")
             except Exception as e:
