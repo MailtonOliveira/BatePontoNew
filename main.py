@@ -551,7 +551,7 @@ def abrir_input_pin_simples():
     root.resizable(False, False)
     root.attributes('-topmost', True)
 
-    largura, altura = 420, 320
+    largura, altura = 420, 380
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
