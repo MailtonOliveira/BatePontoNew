@@ -37,12 +37,10 @@ sudo apt-get install -y python3-tk gir1.2-appindicator3-0.1 wget curl libglib2.0
 # ── Google Chrome ──────────────────────────────────────────────
 if ! command -v google-chrome &>/dev/null && ! command -v google-chrome-stable &>/dev/null; then
     info "Google Chrome não encontrado. Instalando..."
-    wget -q -O /tmp/google-chrome.gpg https://dl.google.com/linux/linux_signing_key.pub
-    sudo apt-key add /tmp/google-chrome.gpg 2>/dev/null
-    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
-        | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
-    sudo apt-get update -q
-    sudo apt-get install -y google-chrome-stable
+    wget -q --show-progress -O /tmp/google-chrome.deb \
+        https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    sudo apt-get install -y /tmp/google-chrome.deb
+    rm -f /tmp/google-chrome.deb
     info "Chrome instalado com sucesso."
 else
     info "Google Chrome já está instalado."
