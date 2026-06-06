@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # BatePonto — instalador para Ubuntu/Debian
-# Uso: curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh | bash
+# Uso recomendado:
+#   curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh -o /tmp/install.sh && bash /tmp/install.sh
+
+# Detecta se está sendo executado via pipe (curl | bash) e re-executa do arquivo
+if [ -p /dev/stdin ]; then
+    TMP=$(mktemp /tmp/bateponto_install_XXXX.sh)
+    cat > "$TMP"
+    exec bash "$TMP"
+fi
 
 REPO="MailtonOliveira/BatePontoNew"
 APP_NAME="BatePonto"
