@@ -621,7 +621,13 @@ def abrir_setup_wizard(pular_para_passo2=False):
     root.resizable(False, False)
     root.attributes('-topmost', True)
 
-    largura, altura = 420, 380
+    # Fonte cross-platform: Segoe UI no Windows, Ubuntu/DejaVu no Linux
+    _font_ui     = ('Segoe UI', 11) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 11)
+    _font_btn    = ('Segoe UI', 10, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 10, 'bold')
+    _font_header = ('Segoe UI', 14, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 13, 'bold')
+    _font_sub    = ('Segoe UI', 9) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 9)
+
+    largura, altura = 480, 440
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
@@ -629,13 +635,10 @@ def abrir_setup_wizard(pular_para_passo2=False):
     root.configure(bg='#2b2b2b')
     style = ttk.Style()
     style.theme_use('clam')
-    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
-                    font=('Segoe UI', 11))
-    style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=8)
-    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
-                    font=('Segoe UI', 14, 'bold'))
-    style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa',
-                    font=('Segoe UI', 9))
+    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=_font_ui)
+    style.configure('TButton', font=_font_btn, padding=8)
+    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=_font_header)
+    style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=_font_sub)
 
     content = tk.Frame(root, bg='#2b2b2b')
     content.pack(fill='both', expand=True, padx=30, pady=20)
@@ -652,16 +655,16 @@ def abrir_setup_wizard(pular_para_passo2=False):
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 10))
         ttk.Label(content, text="Bem-vindo! Vou te guiar pela configuração inicial.",
-                  wraplength=360, background='#2b2b2b', foreground='#ffffff',
-                  font=('Segoe UI', 11)).pack(pady=(0, 6))
+                  wraplength=420, background='#2b2b2b', foreground='#ffffff',
+                  font=_font_ui).pack(pady=(0, 6))
         ttk.Label(content,
                   text="Na próxima etapa o Chrome vai abrir o site da Pontotel.\n"
                        "Faça login com seu e-mail e senha.\n"
                        "Quando o site pedir seu PIN, digite normalmente —\n"
                        "o app vai capturá-lo sozinho.",
-                  wraplength=360, justify='left',
+                  wraplength=420, justify='left',
                   background='#2b2b2b', foreground='#ffffff',
-                  font=('Segoe UI', 11)).pack(pady=(0, 20))
+                  font=_font_ui).pack(pady=(0, 20))
         ttk.Button(content, text="Iniciar →", command=_iniciar).pack()
 
     def _mostrar_passo2():
@@ -673,17 +676,18 @@ def abrir_setup_wizard(pular_para_passo2=False):
             try:
                 if driver:
                     driver.set_window_position(50, 50)
-                    # Tenta focar a janela de forma cross-platform
                     threading.Thread(
                         target=lambda: platform_utils.focar_janela_chrome(registrar_log),
                         daemon=True
                     ).start()
             except Exception:
                 pass
+            # Minimiza o wizard para o Chrome ficar visível
+            root.iconify()
             btn_abrir.configure(state='disabled',
-                                text='✓  Chrome aberto — minimize esta janela e preencha o site',
+                                text='✓  Chrome aberto — preencha o site e volte aqui',
                                 background='#444444', foreground='#aaaaaa',
-                                font=('Segoe UI', 9))
+                                font=_font_sub)
 
         btn_abrir = tk.Button(content,
                               text="▶  Abrir site da Pontotel",
@@ -757,7 +761,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
         tk.Label(content,
                  text="O Chrome roda em background. O ícone na bandeja continua disponível.",
                  background='#2b2b2b', foreground='#777777',
-                 font=('Segoe UI', 8), wraplength=260, justify='left').pack(anchor='w', padx=(72, 10), pady=(0, 14))
+                 font=_font_sub, wraplength=340, justify='left').pack(anchor='w', padx=(72, 10), pady=(0, 14))
 
         def _finalizar():
             exe_instalado = None
@@ -1159,6 +1163,7 @@ def _init_driver():
     options.add_argument(f"--user-data-dir={user_data_dir}")
     options.add_argument("--profile-directory=Default")
     options.add_argument("--window-size=1280,720")
+    options.add_argument("--window-position=10000,10000")
     options.add_argument("--remote-debugging-port=9222")
 
     if HEADLESS_CHROME:
