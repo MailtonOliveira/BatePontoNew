@@ -619,7 +619,6 @@ def abrir_setup_wizard(pular_para_passo2=False):
 
     root = tk.Tk()
     root.title("Bate Ponto — Configuração Inicial")
-    root.resizable(False, False)
     root.attributes('-topmost', True)
 
     # Fonte cross-platform: Segoe UI no Windows, Ubuntu/DejaVu no Linux
@@ -628,11 +627,12 @@ def abrir_setup_wizard(pular_para_passo2=False):
     _font_header = ('Segoe UI', 14, 'bold') if platform_utils.IS_WINDOWS else ('DejaVu Sans', 13, 'bold')
     _font_sub    = ('Segoe UI', 9) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 9)
 
-    largura = 580 if platform_utils.IS_LINUX else 480
-    altura  = 520 if platform_utils.IS_LINUX else 440
+    largura = 480
+    altura  = 440
     x = (root.winfo_screenwidth() // 2) - (largura // 2)
     y = (root.winfo_screenheight() // 2) - (altura // 2)
-    root.geometry(f"{largura}x{altura}+{x}+{y}")
+    root.geometry(f"+{x}+{y}")  # só posição — tamanho auto-ajusta ao conteúdo
+    root.resizable(True, True)  # permite que o conteúdo defina o tamanho
 
     root.configure(bg='#2b2b2b')
     style = ttk.Style()
@@ -728,7 +728,6 @@ def abrir_setup_wizard(pular_para_passo2=False):
     def _mostrar_conclusao():
         if _spinner_job[0]:
             root.after_cancel(_spinner_job[0])
-        root.geometry(f"{largura}x{altura}")
         _limpar()
         ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 6))
         tk.Label(content, text="✅ Configuração concluída!",
@@ -748,8 +747,8 @@ def abrir_setup_wizard(pular_para_passo2=False):
         chk_kw = dict(background='#2b2b2b', foreground='#ffffff',
                       selectcolor='#444444', activebackground='#2b2b2b',
                       activeforeground='#ffffff', font=_font_ui)
-        _px = 20 if platform_utils.IS_LINUX else 50
-        _wrap = largura - (_px * 2) - 60
+        _px = 20
+        _wrap = 420
         chk_kw['wraplength'] = _wrap
         tk.Checkbutton(content, text=platform_utils.label_startup(),
                        variable=var_startup, **chk_kw).pack(anchor='w', padx=_px)
@@ -767,7 +766,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
         tk.Label(content,
                  text="O Chrome roda em background. O ícone na bandeja continua disponível.",
                  background='#2b2b2b', foreground='#777777',
-                 font=_font_sub, wraplength=_wrap, justify='left').pack(anchor='w', padx=(_px + 22, 10), pady=(0, 14))
+                 font=_font_sub, wraplength=400, justify='left').pack(anchor='w', padx=(_px + 22, 10), pady=(0, 14))
 
         def _finalizar():
             exe_instalado = None
@@ -873,7 +872,6 @@ def abrir_setup_wizard(pular_para_passo2=False):
 
     def _on_pin_resultado(pin):
         root.deiconify()
-        root.geometry(f"{largura}x{altura}")
         root.update()
         root.attributes('-topmost', True)
         root.lift()
