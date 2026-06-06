@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # BatePonto — instalador para Ubuntu/Debian
-# Uso: bash install.sh
-#      curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh | bash
-
-set -e
+# Uso: curl -fsSL https://raw.githubusercontent.com/MailtonOliveira/BatePontoNew/main/install.sh | bash
 
 REPO="MailtonOliveira/BatePontoNew"
 APP_NAME="BatePonto"
@@ -13,15 +10,13 @@ SRC_DIR="$HOME/.local/share/BatePonto-src"
 DESKTOP_DIR="$HOME/.local/share/applications"
 AUTOSTART_DIR="$HOME/.config/autostart"
 
-# ── Cores ──────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
-info()    { echo -e "${GREEN}[BatePonto]${NC} $*"; }
-warn()    { echo -e "${YELLOW}[aviso]${NC} $*"; }
-erro()    { echo -e "${RED}[erro]${NC} $*"; exit 1; }
+info() { echo -e "${GREEN}[BatePonto]${NC} $*"; }
+warn() { echo -e "${YELLOW}[aviso]${NC} $*"; }
+erro() { echo -e "${RED}[erro]${NC} $*"; exit 1; }
 
-# ── Verifica distro ────────────────────────────────────────────
 if ! command -v apt-get &>/dev/null; then
-    erro "Este instalador requer Ubuntu/Debian (apt). Para outras distros, baixe o binário manualmente."
+    erro "Este instalador requer Ubuntu/Debian (apt)."
 fi
 
 echo ""
@@ -29,7 +24,6 @@ echo "  ⏰  BatePonto — Instalador"
 echo "  ─────────────────────────"
 echo ""
 
-# ── Dependências do sistema ────────────────────────────────────
 info "Instalando dependências do sistema..."
 sudo apt-get update -q
 sudo apt-get install -y python3-tk python3-venv gir1.2-appindicator3-0.1 wget curl git \
@@ -37,7 +31,6 @@ sudo apt-get install -y python3-tk python3-venv gir1.2-appindicator3-0.1 wget cu
 sudo apt-get install -y python3-tk python3-venv gir1.2-appindicator3-0.1 wget curl git \
     libglib2.0-0 libgtk-3-0 libappindicator3-1 2>/dev/null || true
 
-# ── Google Chrome ──────────────────────────────────────────────
 if ! command -v google-chrome &>/dev/null && ! command -v google-chrome-stable &>/dev/null; then
     info "Google Chrome não encontrado. Instalando..."
     wget -q --show-progress -O /tmp/google-chrome.deb \
@@ -49,7 +42,6 @@ else
     info "Google Chrome já está instalado."
 fi
 
-# ── Tentar baixar binário do release ──────────────────────────
 mkdir -p "$INSTALL_DIR"
 USE_SOURCE=false
 
@@ -73,7 +65,6 @@ else
     fi
 fi
 
-# ── Fallback: instalar do código-fonte ────────────────────────
 if [ "$USE_SOURCE" = true ]; then
     info "Clonando repositório..."
     rm -rf "$SRC_DIR"
@@ -85,21 +76,18 @@ if [ "$USE_SOURCE" = true ]; then
     "$SRC_DIR/.venv/bin/pip" install -q -r "$SRC_DIR/requirements-server.txt"
     "$SRC_DIR/.venv/bin/pip" install -q "pystray>=0.19" 2>/dev/null || true
 
-    # Cria wrapper executável
     printf '#!/usr/bin/env bash\nexec "%s/.venv/bin/python3" "%s/main.py" "$@"\n' \
         "$SRC_DIR" "$SRC_DIR" > "$BIN_PATH"
     chmod +x "$BIN_PATH"
     info "Instalado do código-fonte em: $SRC_DIR"
 fi
 
-# ── Atalho no menu de aplicativos ─────────────────────────────
 mkdir -p "$DESKTOP_DIR"
 printf '[Desktop Entry]\nType=Application\nName=BatePonto\nComment=Automação de ponto no Pontotel\nExec=%s\nIcon=appointment\nTerminal=false\nCategories=Utility;\nStartupNotify=false\n' \
     "$BIN_PATH" > "$DESKTOP_DIR/bateponto.desktop"
 chmod +x "$DESKTOP_DIR/bateponto.desktop"
 info "Atalho criado no menu de aplicativos."
 
-# ── Autostart ─────────────────────────────────────────────────
 echo ""
 read -rp "  Iniciar BatePonto automaticamente com o sistema? [s/N] " resp </dev/tty
 if [[ "$resp" =~ ^[Ss]$ ]]; then
@@ -108,7 +96,6 @@ if [[ "$resp" =~ ^[Ss]$ ]]; then
     info "Autostart configurado."
 fi
 
-# ── Concluído ──────────────────────────────────────────────────
 echo ""
 echo -e "  ${GREEN}✅ Instalação concluída!${NC}"
 echo ""
