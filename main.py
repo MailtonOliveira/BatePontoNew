@@ -1212,7 +1212,19 @@ def _init_driver():
 # Fluxo principal (inalterado na lógica)
 # ──────────────────────────────────────────────────────────────
 
-def preencher_senha():
+def _recarregar_pagina():
+    """Recarrega a URL do Pontotel e aguarda a página estabilizar."""
+    try:
+        registrar_log("Recarregando página do Pontotel...")
+        driver.get(url)
+        time.sleep(5)
+        return True
+    except Exception as e:
+        registrar_log(f"Erro ao recarregar página: {e}")
+        return False
+
+
+def preencher_senha(tentar_reload=True):
     try:
         wait = WebDriverWait(driver, 10)
         host = wait.until(EC.presence_of_element_located(
@@ -1232,6 +1244,10 @@ def preencher_senha():
             return False
     except Exception as e:
         registrar_log(f"Campo de senha não encontrado. Erro: {type(e).__name__}")
+        if tentar_reload:
+            registrar_log("Tentando recuperar recarregando a página...")
+            if _recarregar_pagina():
+                return preencher_senha(tentar_reload=False)
         return False
 
 
