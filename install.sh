@@ -9,6 +9,7 @@ REPO="MailtonOliveira/BatePontoNew"
 APP_NAME="BatePonto"
 INSTALL_DIR="$HOME/.local/share/BatePonto"
 BIN_PATH="$INSTALL_DIR/$APP_NAME"
+SRC_DIR="$HOME/.local/share/BatePonto-src"
 DESKTOP_DIR="$HOME/.local/share/applications"
 AUTOSTART_DIR="$HOME/.config/autostart"
 
@@ -31,8 +32,10 @@ echo ""
 # ── Dependências do sistema ────────────────────────────────────
 info "Instalando dependências do sistema..."
 sudo apt-get update -q
-sudo apt-get install -y python3-tk gir1.2-appindicator3-0.1 wget curl libglib2.0-0 \
-    libgtk-3-0 libappindicator3-1 2>/dev/null || true
+sudo apt-get install -y python3-tk python3-venv gir1.2-appindicator3-0.1 wget curl git \
+    libglib2.0-0t64 libgtk-3-0t64 libappindicator3-1 2>/dev/null || \
+sudo apt-get install -y python3-tk python3-venv gir1.2-appindicator3-0.1 wget curl git \
+    libglib2.0-0 libgtk-3-0 libappindicator3-1 2>/dev/null || true
 
 # ── Google Chrome ──────────────────────────────────────────────
 if ! command -v google-chrome &>/dev/null && ! command -v google-chrome-stable &>/dev/null; then
@@ -46,24 +49,50 @@ else
     info "Google Chrome já está instalado."
 fi
 
-# ── Baixar binário ─────────────────────────────────────────────
+# ── Tentar baixar binário do release ──────────────────────────
+mkdir -p "$INSTALL_DIR"
+USE_SOURCE=false
+
 info "Buscando última versão no GitHub..."
 LATEST=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
     | grep '"tag_name"' | head -1 | cut -d'"' -f4)
 
 if [ -z "$LATEST" ]; then
-    erro "Não foi possível obter a versão mais recente. Verifique sua conexão."
+    warn "Não foi possível consultar releases. Usando código-fonte."
+    USE_SOURCE=true
+else
+    info "Versão encontrada: $LATEST"
+    DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST/$APP_NAME"
+    info "Baixando binário $APP_NAME..."
+    if curl -fsSL "$DOWNLOAD_URL" -o "$BIN_PATH" 2>/dev/null; then
+        chmod +x "$BIN_PATH"
+        info "Binário instalado em: $BIN_PATH"
+    else
+        warn "Binário Linux não disponível neste release. Instalando do código-fonte..."
+        USE_SOURCE=true
+    fi
 fi
 
-info "Versão encontrada: $LATEST"
+# ── Fallback: instalar do código-fonte ────────────────────────
+if [ "$USE_SOURCE" = true ]; then
+    info "Clonando repositório..."
+    rm -rf "$SRC_DIR"
+    git clone --depth=1 "https://github.com/$REPO.git" "$SRC_DIR"
 
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST/$APP_NAME"
+    info "Criando ambiente virtual Python..."
+    python3 -m venv "$SRC_DIR/.venv"
+    "$SRC_DIR/.venv/bin/pip" install -q -r "$SRC_DIR/requirements-server.txt"
+    # Instala pystray para modo desktop
+    "$SRC_DIR/.venv/bin/pip" install -q "pystray>=0.19" 2>/dev/null || true
 
-info "Baixando $APP_NAME..."
-mkdir -p "$INSTALL_DIR"
-curl -fsSL "$DOWNLOAD_URL" -o "$BIN_PATH" || erro "Falha ao baixar o binário. Verifique se o release '$LATEST' contém o arquivo '$APP_NAME'."
-chmod +x "$BIN_PATH"
-info "Binário instalado em: $BIN_PATH"
+    # Cria wrapper executável
+    cat > "$BIN_PATH" << WRAPPER
+#!/usr/bin/env bash
+exec "$SRC_DIR/.venv/bin/python3" "$SRC_DIR/main.py" "\$@"
+WRAPPER
+    chmod +x "$BIN_PATH"
+    info "Instalado do código-fonte em: $SRC_DIR"
+fi
 
 # ── Atalho no menu de aplicativos ─────────────────────────────
 mkdir -p "$DESKTOP_DIR"
@@ -101,7 +130,6 @@ echo ""
 read -rp "  Iniciar o BatePonto agora? [S/n] " resp
 if [[ ! "$resp" =~ ^[Nn]$ ]]; then
     info "Iniciando BatePonto..."
-    # Exporta DISPLAY para garantir que o wizard apareça
     export DISPLAY="${DISPLAY:-:0}"
     export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-autolaunch:}"
     exec "$BIN_PATH"
