@@ -259,7 +259,7 @@ def abrir_janela_configuracao():
 
             var = tk.StringVar(value=atuais.get(nome, '00:00'))
             entry = ttk.Entry(frame, textvariable=var, width=8, justify='center',
-                              font=('Segoe UI', 12))
+                              font=('Segoe UI', 12) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 12))
             entry.grid(row=i, column=1, pady=5)
             entradas[nome] = (var, chave_env, seletor)
 
@@ -450,13 +450,14 @@ def abrir_janela_localizacao():
 
         ttk.Label(frame, text="UF:").grid(row=0, column=0, sticky='w', pady=6, padx=(0, 10))
         var_uf = tk.StringVar(value=os.getenv("REGIAO_UF", ""))
+        _ef = ('Segoe UI', 12) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 12)
         ttk.Entry(frame, textvariable=var_uf, width=6, justify='center',
-                  font=('Segoe UI', 12)).grid(row=0, column=1, pady=6, sticky='w')
+                  font=_ef).grid(row=0, column=1, pady=6, sticky='w')
 
         ttk.Label(frame, text="Cidade:").grid(row=1, column=0, sticky='w', pady=6, padx=(0, 10))
         var_cidade = tk.StringVar(value=os.getenv("REGIAO_CIDADE", ""))
         ttk.Entry(frame, textvariable=var_cidade, width=28, justify='left',
-                  font=('Segoe UI', 12)).grid(row=1, column=1, pady=6, sticky='w')
+                  font=_ef).grid(row=1, column=1, pady=6, sticky='w')
 
         status_var = tk.StringVar()
         ttk.Label(root, textvariable=status_var, style='Info.TLabel').pack(pady=(6, 0))
@@ -555,14 +556,14 @@ def abrir_input_pin_simples():
     y = (root.winfo_screenheight() // 2) - (altura // 2)
     root.geometry(f"{largura}x{altura}+{x}+{y}")
 
+    _f = 'Segoe UI' if platform_utils.IS_WINDOWS else 'DejaVu Sans'
+
     root.configure(bg='#2b2b2b')
     style = ttk.Style()
     style.theme_use('clam')
-    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff',
-                    font=('Segoe UI', 11))
-    style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
-    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50',
-                    font=('Segoe UI', 13, 'bold'))
+    style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=(_f, 11))
+    style.configure('TButton', font=(_f, 10, 'bold'), padding=6)
+    style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=(_f, 13, 'bold'))
 
     ttk.Label(root, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(18, 8))
     ttk.Label(root,
@@ -571,12 +572,12 @@ def abrir_input_pin_simples():
 
     var_pin = tk.StringVar()
     entry = ttk.Entry(root, textvariable=var_pin, width=14, justify='center',
-                      font=('Segoe UI', 14), show='*')
+                      font=(_f, 14), show='*')
     entry.pack(pady=(0, 8))
     ttk.Label(root,
               text="💡 Dica: no primeiro cadastro na plataforma, o PIN geralmente é o seu CPF.",
               wraplength=300, justify='center',
-              font=('Segoe UI', 8)).pack(pady=(0, 12))
+              font=(_f, 9)).pack(pady=(0, 12))
     entry.focus()
 
     def salvar():
@@ -693,7 +694,7 @@ def abrir_setup_wizard(pular_para_passo2=False):
                               text="▶  Abrir site da Pontotel",
                               command=_abrir_chrome_pontotel,
                               background='#4CAF50', foreground='#ffffff',
-                              font=('Segoe UI', 11, 'bold'),
+                              font=_font_btn,
                               relief='flat', padx=16, pady=8,
                               cursor='hand2', activebackground='#388E3C',
                               activeforeground='#ffffff')
@@ -703,11 +704,11 @@ def abrir_setup_wizard(pular_para_passo2=False):
                     "●  Digite seu PIN quando pedido",
                     "●  Não feche o Chrome"]:
             tk.Label(content, text=txt, background='#2b2b2b', foreground='#aaaaaa',
-                     font=('Segoe UI', 9)).pack(anchor='w', pady=1)
+                     font=_font_sub).pack(anchor='w', pady=1)
 
         spinner_var = tk.StringVar(value="◐  Detectando PIN...")
         tk.Label(content, textvariable=spinner_var, background='#2b2b2b',
-                 foreground='#aaaaaa', font=('Segoe UI', 9)).pack(pady=(14, 0))
+                 foreground='#aaaaaa', font=_font_sub).pack(pady=(14, 0))
 
         def _tick_spinner():
             _spinner_idx[0] = (_spinner_idx[0] + 1) % len(_spinner_chars)
@@ -911,7 +912,7 @@ def abrir_janela_alterar_pin():
 
         var_pin = tk.StringVar()
         entry = ttk.Entry(root, textvariable=var_pin, width=14, justify='center',
-                          font=('Segoe UI', 13), show='*')
+                          font=('Segoe UI', 13) if platform_utils.IS_WINDOWS else ('DejaVu Sans', 13), show='*')
         entry.pack(pady=(4, 16))
         entry.focus()
 
@@ -1559,12 +1560,13 @@ else:
     _tk_root.withdraw()
     _tk_style = ttk.Style(_tk_root)
     _tk_style.theme_use('clam')
-    _tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=('Segoe UI', 11))
-    _tk_style.configure('TEntry', font=('Segoe UI', 11))
-    _tk_style.configure('TButton', font=('Segoe UI', 10, 'bold'), padding=6)
-    _tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=('Segoe UI', 13, 'bold'))
-    _tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
-    _tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=('Segoe UI', 9))
+    _sf = 'Segoe UI' if platform_utils.IS_WINDOWS else 'DejaVu Sans'
+    _tk_style.configure('TLabel', background='#2b2b2b', foreground='#ffffff', font=(_sf, 11))
+    _tk_style.configure('TEntry', font=(_sf, 11))
+    _tk_style.configure('TButton', font=(_sf, 10, 'bold'), padding=6)
+    _tk_style.configure('Header.TLabel', background='#2b2b2b', foreground='#4CAF50', font=(_sf, 13, 'bold'))
+    _tk_style.configure('Sub.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=(_sf, 9))
+    _tk_style.configure('Info.TLabel', background='#2b2b2b', foreground='#aaaaaa', font=(_sf, 9))
 
     icon.run_detached()
     _tk_root.mainloop()
