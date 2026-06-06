@@ -841,13 +841,32 @@ def abrir_setup_wizard():
         registrar_log("PIN capturado e salvo durante setup inicial.")
 
     def _iniciar():
-        _init_driver()
-        if not janela_visivel:
-            # Perfil já tem sessão — só precisa do PIN, pula direto para conclusão
-            root.destroy()
-            abrir_input_pin_simples()
-            return
-        _mostrar_passo2()
+        _limpar()
+        ttk.Label(content, text="⏰ Bate Ponto", style='Header.TLabel').pack(pady=(0, 16))
+        _spin_var = tk.StringVar(value="◐  Iniciando Chrome...")
+        tk.Label(content, textvariable=_spin_var, background='#2b2b2b',
+                 foreground='#aaaaaa', font=_font_ui).pack(pady=20)
+
+        _chars = ['◐', '◓', '◑', '◒']
+        _si = [0]
+        def _tick():
+            _si[0] = (_si[0] + 1) % 4
+            _spin_var.set(f"{_chars[_si[0]]}  Iniciando Chrome...")
+            root.after(300, _tick)
+        root.after(300, _tick)
+
+        def _thread():
+            _init_driver()
+            root.after(0, _on_chrome_pronto)
+
+        def _on_chrome_pronto():
+            if not janela_visivel:
+                root.destroy()
+                abrir_input_pin_simples()
+            else:
+                _mostrar_passo2()
+
+        threading.Thread(target=_thread, daemon=True).start()
 
     def _reiniciar():
         global driver
