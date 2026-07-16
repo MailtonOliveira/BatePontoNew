@@ -1481,6 +1481,13 @@ def main_loop():
                     ultimo_proximo_logado = proximo_str
                 time.sleep(min(30, faltam - _ANTECEDENCIA))
 
+            # Revalida fim de semana/feriado: o smart sleep pode ter atravessado
+            # a virada do dia (ex: Sexta 17h -> Sábado 08h) sem que a checagem
+            # do topo do loop tivesse detectado.
+            if is_weekend() or is_holiday():
+                registrar_log("Virada de dia durante espera: hoje é final de semana ou feriado. Ponto não será batido.")
+                continue
+
             # Polling fino: espera o segundo exato (janela de até 20s)
             horario_atual = None
             for _ in range(20):
