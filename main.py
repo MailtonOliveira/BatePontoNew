@@ -80,22 +80,22 @@ def _carregar_horarios_do_env():
     """Carrega os 4 horários a partir das variáveis de ambiente."""
     return {
         os.getenv("HORARIO_ENTRADA", "08:00"): {
-            'seletor': 'pontotel-botao-ponto[tipo="entrada"]',
+            'seletor': '.pontotel-botao-ponto.pontotel-botao-ponto--entrada',
             'nome': 'Entrada',
             'chave_env': 'HORARIO_ENTRADA'
         },
         os.getenv("HORARIO_PAUSA", "12:50"): {
-            'seletor': 'pontotel-botao-ponto[tipo="pausa"]',
+            'seletor': '.pontotel-botao-ponto.pontotel-botao-ponto--pausa',
             'nome': 'Pausa',
             'chave_env': 'HORARIO_PAUSA'
         },
         os.getenv("HORARIO_RETORNO", "13:50"): {
-            'seletor': 'pontotel-botao-ponto[tipo="retorno"]',
+            'seletor': '.pontotel-botao-ponto.pontotel-botao-ponto--retorno',
             'nome': 'Retorno',
             'chave_env': 'HORARIO_RETORNO'
         },
         os.getenv("HORARIO_SAIDA", "17:00"): {
-            'seletor': 'pontotel-botao-ponto[tipo="saida"]',
+            'seletor': '.pontotel-botao-ponto.pontotel-botao-ponto--saida',
             'nome': 'Saída',
             'chave_env': 'HORARIO_SAIDA'
         },
@@ -220,10 +220,10 @@ def _validar_horario(valor):
 
 
 NOMES_PONTOS = [
-    ('Entrada', 'HORARIO_ENTRADA', 'pontotel-botao-ponto[tipo="entrada"]'),
-    ('Pausa',   'HORARIO_PAUSA',   'pontotel-botao-ponto[tipo="pausa"]'),
-    ('Retorno', 'HORARIO_RETORNO', 'pontotel-botao-ponto[tipo="retorno"]'),
-    ('Saída',   'HORARIO_SAIDA',   'pontotel-botao-ponto[tipo="saida"]'),
+    ('Entrada', 'HORARIO_ENTRADA', 'pontotel-botao-ponto.pontotel-botao-ponto--entrada'),
+    ('Pausa',   'HORARIO_PAUSA',   'pontotel-botao-ponto.pontotel-botao-ponto--pausa'),
+    ('Retorno', 'HORARIO_RETORNO', 'pontotel-botao-ponto.pontotel-botao-ponto--retorno'),
+    ('Saída',   'HORARIO_SAIDA',   'pontotel-botao-ponto.pontotel-botao-ponto--saida'),
 ]
 
 
@@ -1179,21 +1179,27 @@ def _init_driver():
     options.add_argument("--remote-debugging-port=9222")
 
     if HEADLESS_CHROME:
-        if platform_utils.IS_LINUX:
-            options.add_argument("--headless=new")
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--disable-software-rasterizer")
-        else:
-            options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-extensions")
-        options.add_experimental_option("prefs", {
-            "profile.default_content_setting_values.geolocation": 2,
-        })
-        chrome_bin = os.getenv("CHROME_BIN", "")
-        if chrome_bin:
-            options.binary_location = chrome_bin
+            if platform_utils.IS_LINUX:
+                options.add_argument("--headless=new")
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                options.add_argument("--disable-software-rasterizer")
+            else:
+                options.add_argument("--headless")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--disable-extensions")
+            # Usa virtual camera real via v4l2loopback (/dev/video10) + pyvirtualcam
+            options.add_argument("--use-fake-ui-for-media-stream")
+            options.add_experimental_option("prefs", {
+                "profile.default_content_setting_values.geolocation": 2,
+                "profile.default_content_setting_values.media_stream_camera": 1,
+                "profile.default_content_setting_values.media_stream_mic": 1,
+            })
+            # Força uso do device de vídeo real
+            options.add_argument("--use-fake-device-for-media-stream")
+            chrome_bin = os.getenv("CHROME_BIN", "")
+            if chrome_bin:
+                options.binary_location = chrome_bin
 
     print("[BatePonto] Abrindo Chrome...")
     try:
@@ -1279,86 +1285,124 @@ def clicar_opcao(horario_atual):
     hoje_str = datetime.datetime.now().strftime("%d.%m.%y")
 
     try:
-        for _ in range(timeout_padrao):
+        # Fase 1: aguarda o botão do ponto aparecer após o PIN (até 60s).
+        # A página Vue demora a hidratar às vezes — poll 1s em vez de 1 tentativa.
+        host = None
+        for _ in range(60):
             botoes = driver.find_elements(By.CSS_SELECTOR, seletor)
             if botoes:
                 host = botoes[0]
-
-                # Verificação de ponto duplicado
-                ultimo_ponto = host.get_attribute("ultimo-ponto")
-                if ultimo_ponto and ultimo_ponto.startswith(hoje_str):
-                    msg = f"Aviso: Ponto '{nome}' já foi registrado hoje ({ultimo_ponto}). Ignorando novo clique."
-                    registrar_log(msg)
-                    return True
-
-                botao_interno = driver.execute_script(
-                    "return arguments[0].shadowRoot ? arguments[0].shadowRoot.querySelector('button') : arguments[0]",
-                    host)
-                if botao_interno:
-                    driver.execute_script("arguments[0].click();", botao_interno)
-                else:
-                    driver.execute_script("arguments[0].click();", host)
-
-                registrar_log(f"Opção '{nome}' selecionada. Aguardando confirmação...")
-
-                # Aguarda até 30s por tela de câmera
-                for _ in range(30):
-                    time.sleep(1)
-                    try:
-                        botoes_continuar = driver.find_elements(
-                            By.XPATH,
-                            "//*[contains(text(),'Continuar sem foto') or contains(text(),'continuar sem foto')]"
-                        )
-                        if botoes_continuar:
-                            registrar_log("Tela de câmera detectada. Clicando em 'Continuar sem foto'.")
-                            driver.execute_script("arguments[0].click();", botoes_continuar[0])
-                            # Aguarda botão "Finalizar" e clica
-                            for _ in range(30):
-                                time.sleep(1)
-                                try:
-                                    hosts_finalizar = driver.find_elements(
-                                        By.CSS_SELECTOR,
-                                        "pontotel-botao.cabecalho-confirmacao__conteudo__botao"
-                                    )
-                                    if hosts_finalizar:
-                                        btn_f = driver.execute_script(
-                                            "return arguments[0].shadowRoot"
-                                            " ? arguments[0].shadowRoot.querySelector('button')"
-                                            " : arguments[0]",
-                                            hosts_finalizar[0]
-                                        )
-                                        driver.execute_script(
-                                            "arguments[0].click();",
-                                            btn_f if btn_f else hosts_finalizar[0]
-                                        )
-                                        registrar_log("Botão 'Finalizar' clicado. Aguardando conclusão...")
-                                        # Aguarda barra de progresso sumir
-                                        for _ in range(30):
-                                            time.sleep(1)
-                                            try:
-                                                if not driver.find_elements(By.CSS_SELECTOR, ".progresso__barra"):
-                                                    break
-                                            except Exception:
-                                                break
-                                        registrar_log(f"Ponto '{nome}' finalizado com sucesso.")
-                                        return True
-                                except Exception:
-                                    pass
-                            registrar_log(f"Botão 'Finalizar' não encontrado após câmera — ponto pode não ter sido registrado.")
-                            return False
-                    except Exception:
-                        pass
-
-                registrar_log(f"Ponto '{nome}' registrado (sem tela de câmera).")
-                return True
+                break
             time.sleep(1)
+        if host is None:
+            registrar_log(f"Botão do ponto '{nome}' não apareceu após PIN (60s).")
+            return False
 
-        registrar_log(f"Timeout ({timeout_padrao}s): botão '{nome}' não encontrado.")
+        # Verificação de ponto duplicado
+        ultimo_ponto = host.get_attribute("ultimo-ponto")
+        if ultimo_ponto and ultimo_ponto.startswith(hoje_str):
+            registrar_log(f"Aviso: Ponto '{nome}' já foi registrado hoje ({ultimo_ponto}). Ignorando novo clique.")
+            return True
+
+        botao_interno = driver.execute_script(
+            "return arguments[0].shadowRoot ? arguments[0].shadowRoot.querySelector('button') : arguments[0]",
+            host)
+        driver.execute_script("arguments[0].click();", botao_interno if botao_interno else host)
+        registrar_log(f"Opção '{nome}' selecionada. Aguardando confirmação...")
+
+        # Fase 2: aguarda confirmação — diálogo, câmera ou reload (até 60s)
+        for _ in range(60):
+            time.sleep(1)
+            try:
+                txt_pagina = driver.execute_script(
+                    "return document.body ? document.body.innerText : ''")
+
+                # Diálogo "Você já registrou um ponto... continuar mesmo assim?"
+                if 'mesmo assim' in txt_pagina:
+                    driver.execute_script("""
+                        var achou=null;
+                        (function walk(root){
+                          root.querySelectorAll('*').forEach(function(el){
+                            if (el.shadowRoot) walk(el.shadowRoot);
+                            if (!achou && el.textContent && el.textContent.trim()==='Confirmar') achou=el;
+                          });
+                        })(document);
+                        if (achou) achou.click();
+                    """)
+                    registrar_log("Diálogo 'já registrou ponto' detectado — Confirmar clicado.")
+                    continue
+
+                # Fluxo novo: botão "Tirar foto"
+                botoes_foto = driver.find_elements(By.CSS_SELECTOR, "#botao-continuar")
+                if botoes_foto:
+                    registrar_log("Tela de câmera (novo fluxo): botão 'Tirar foto' detectado.")
+                    driver.execute_script("arguments[0].click();", botoes_foto[0])
+                    time.sleep(5)
+                    # Página recarrega sozinha após foto — aguarda e confirma registro
+                    for _ in range(20):
+                        time.sleep(1)
+                        try:
+                            page_text = driver.page_source
+                            if "registrado" in page_text.lower() or "sucesso" in page_text.lower() or "ponto batido" in page_text.lower():
+                                registrar_log(f"Ponto '{nome}' confirmado no servidor.")
+                                return True
+                            if "pagina-sincronizacao-pin" in page_text:
+                                registrar_log("Voltou para tela de PIN - ponto pode não ter sido salvo.")
+                                break
+                        except Exception:
+                            pass
+                    registrar_log(f"Ponto '{nome}' - foto tirada mas confirmação não detectada.")
+                    return False
+
+                # Fluxo antigo: "Continuar sem foto"
+                botoes_continuar = driver.find_elements(
+                    By.XPATH,
+                    "//*[contains(text(),'Continuar sem foto') or contains(text(),'continuar sem foto')]"
+                )
+                if botoes_continuar:
+                    registrar_log("Tela de câmera detectada. Clicando em 'Continuar sem foto'.")
+                    driver.execute_script("arguments[0].click();", botoes_continuar[0])
+                    for _ in range(30):
+                        time.sleep(1)
+                        try:
+                            hosts_finalizar = driver.find_elements(
+                                By.CSS_SELECTOR,
+                                "pontotel-botao.cabecalho-confirmacao__conteudo__botao"
+                            )
+                            if hosts_finalizar:
+                                btn_f = driver.execute_script(
+                                    "return arguments[0].shadowRoot"
+                                    " ? arguments[0].shadowRoot.querySelector('button')"
+                                    " : arguments[0]",
+                                    hosts_finalizar[0]
+                                )
+                                driver.execute_script(
+                                    "arguments[0].click();",
+                                    btn_f if btn_f else hosts_finalizar[0]
+                                )
+                                registrar_log("Botão 'Finalizar' clicado. Aguardando conclusão...")
+                                for _ in range(30):
+                                    time.sleep(1)
+                                    try:
+                                        if not driver.find_elements(By.CSS_SELECTOR, ".progresso__barra"):
+                                            break
+                                    except Exception:
+                                        break
+                                registrar_log(f"Ponto '{nome}' finalizado com sucesso.")
+                                return True
+                        except Exception:
+                            pass
+                    registrar_log("Botão 'Finalizar' não encontrado após câmera — ponto pode não ter sido registrado.")
+                    return False
+            except Exception:
+                pass
+
+        registrar_log("Timeout (60s): confirmação (câmera/diálogo) não apareceu.")
         return False
+
     except Exception as e:
         registrar_log(f"Erro ao tentar clicar na opção '{nome}': {str(e)}.")
         return False
-
 # ──────────────────────────────────────────────────────────────
 # Gerenciamento de janela
 # ──────────────────────────────────────────────────────────────
@@ -1512,7 +1556,7 @@ def main_loop():
                             agora_str = datetime.datetime.now().strftime("%H:%M")
                             msg_ok = f"{nome_ponto} registrado às {agora_str}"
                             registrar_log(f"Ponto batido: {msg_ok}")
-                            _atualizar_icone('normal')
+                            _atualizar_icone("normal")
                             if systray_icon:
                                 systray_icon.notify(msg_ok, "Ponto Batido!")
                         else:
@@ -1527,6 +1571,18 @@ def main_loop():
             except Exception as e:
                 registrar_log(f"Erro inesperado: {str(e)}")
                 _notificar_falha(nome_ponto)
+
+            # Aguarda página recarregar e elementos estarem prontos após ponto
+            registrar_log("Aguardando página estabilizar após ponto...")
+            for _ in range(30):
+                time.sleep(1)
+                try:
+                    elementos = driver.find_elements(By.CSS_SELECTOR, ".pagina-sincronizacao-pin__input-pin, pontotel-botao-ponto")
+                    if elementos:
+                        registrar_log("Página estabilizada, elementos detectados.")
+                        break
+                except Exception:
+                    pass
 
             # Sai da janela do minuto atual antes de recalcular o próximo
             time.sleep(65)
