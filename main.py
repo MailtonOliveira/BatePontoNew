@@ -1179,27 +1179,32 @@ def _init_driver():
     options.add_argument("--remote-debugging-port=9222")
 
     if HEADLESS_CHROME:
-            if platform_utils.IS_LINUX:
-                options.add_argument("--headless=new")
-                options.add_argument("--no-sandbox")
-                options.add_argument("--disable-dev-shm-usage")
-                options.add_argument("--disable-software-rasterizer")
-            else:
-                options.add_argument("--headless")
-            options.add_argument("--disable-gpu")
-            options.add_argument("--disable-extensions")
-            # Usa virtual camera real via v4l2loopback (/dev/video10) + pyvirtualcam
-            options.add_argument("--use-fake-ui-for-media-stream")
-            options.add_experimental_option("prefs", {
-                "profile.default_content_setting_values.geolocation": 2,
-                "profile.default_content_setting_values.media_stream_camera": 1,
-                "profile.default_content_setting_values.media_stream_mic": 1,
-            })
-            # Força uso do device de vídeo real
-            options.add_argument("--use-fake-device-for-media-stream")
-            chrome_bin = os.getenv("CHROME_BIN", "")
-            if chrome_bin:
-                options.binary_location = chrome_bin
+        if platform_utils.IS_LINUX:
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-software-rasterizer")
+        else:
+            options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        # Usa virtual camera real via v4l2loopback (/dev/video10) + pyvirtualcam
+        options.add_argument("--use-fake-ui-for-media-stream")
+        options.add_experimental_option("prefs", {
+            "profile.default_content_setting_values.geolocation": 2,
+            "profile.default_content_setting_values.media_stream_camera": 1,
+            "profile.default_content_setting_values.media_stream_mic": 1,
+        })
+        # Força uso do device de vídeo real
+        options.add_argument("--use-fake-device-for-media-stream")
+        chrome_bin = os.getenv("CHROME_BIN", "")
+        if not chrome_bin:
+            # Detecta Snap Chromium no Ubuntu ARM64
+            snap_chrome = "/snap/chromium/current/usr/lib/chromium-browser/chrome"
+            if os.path.isfile(snap_chrome):
+                chrome_bin = snap_chrome
+        if chrome_bin:
+            options.binary_location = chrome_bin
 
     print("[BatePonto] Abrindo Chrome...")
     try:

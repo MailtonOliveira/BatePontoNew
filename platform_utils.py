@@ -367,6 +367,10 @@ def _encontrar_chrome() -> str | None:
             resultado = subprocess.run(["which", binario], capture_output=True, text=True)
             if resultado.returncode == 0:
                 return resultado.stdout.strip()
+        # Snap Chromium no Ubuntu ARM64
+        snap_chrome = "/snap/chromium/current/usr/lib/chromium-browser/chrome"
+        if os.path.isfile(snap_chrome):
+            return snap_chrome
         return None
 
 
