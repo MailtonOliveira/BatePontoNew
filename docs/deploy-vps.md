@@ -81,6 +81,10 @@ tail -f /tmp/BatePonto/logs_bateponto.txt
 ## Provisionamento (ordem exata)
 
 ```bash
+# 0. Timezone OBRIGATÓRIO — America/Sao_Paulo. O código usa datetime.now()
+#    sem timezone; servidor em UTC = todos os pontos 3h adiantados.
+sudo timedatectl set-timezone America/Sao_Paulo
+
 # 1. System deps + Python + Chromium (ARM64 usa snap)
 sudo apt update && sudo apt install -y python3 python3-pip python3-venv git
 sudo apt install -y chromium-browser  # snap
